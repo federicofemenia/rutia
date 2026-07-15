@@ -1,9 +1,16 @@
 import { Button, Stack, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../app/router/routes';
+import { useRoute } from '../../features/route';
 
 export function HomePage() {
   const navigate = useNavigate();
+  const { startNewRoute } = useRoute();
+
+  const handleNewRoute = () => {
+    startNewRoute();
+    navigate(ROUTES.scan);
+  };
 
   return (
     <Stack
@@ -26,7 +33,7 @@ export function HomePage() {
       <Typography variant="subtitle1" color="text.secondary">
         Inteligencia para repartir
       </Typography>
-      <Button variant="contained" size="large" onClick={() => navigate(ROUTES.scan)}>
+      <Button variant="contained" size="large" onClick={handleNewRoute}>
         Nueva Ruta
       </Button>
     </Stack>

@@ -1,6 +1,9 @@
 import { Alert, Button, Stack, Typography } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
+import { ROUTES } from '../../app/router/routes';
 import { CameraFeed } from '../../features/camera';
-import { DeliveryForm, ScannerPhase, useDeliveryCapture } from '../../features/deliveries';
+import { useRoute } from '../../features/route';
+import { DeliveryForm, ScannerPhase, useDeliveryCapture } from '../../features/scanner';
 
 export function ScanPage() {
   const {
@@ -15,8 +18,9 @@ export function ScanPage() {
     captureAndExtract,
     retry,
     confirmDelivery,
-    deliveries,
   } = useDeliveryCapture();
+  const { session } = useRoute();
+  const navigate = useNavigate();
 
   return (
     <Stack
@@ -29,7 +33,7 @@ export function ScanPage() {
       </Typography>
 
       <Typography variant="body2" color="text.secondary">
-        {deliveries.length} entregas cargadas
+        📦 Entregas cargadas: {session.deliveries.length}
       </Typography>
 
       <CameraFeed videoRef={videoRef} status={cameraStatus} errorMessage={cameraErrorMessage} />
@@ -63,6 +67,12 @@ export function ScanPage() {
 
       {phase === ScannerPhase.Reviewing && draft && (
         <DeliveryForm value={draft} onChange={updateDraft} onSubmit={confirmDelivery} />
+      )}
+
+      {phase === ScannerPhase.Capturing && session.deliveries.length > 0 && (
+        <Button variant="outlined" onClick={() => navigate(ROUTES.routeSummary)}>
+          Finalizar escaneo
+        </Button>
       )}
     </Stack>
   );

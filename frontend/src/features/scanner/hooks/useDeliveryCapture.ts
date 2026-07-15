@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { type CameraStatus, useCamera } from '../../camera';
 import { useExtractAddress } from '../../address-extraction';
-import { type Delivery, type DeliveryDraft, ScannerPhase } from '../types';
+import { useRoute } from '../../route';
+import { type DeliveryDraft, ScannerPhase } from '../types';
 
 interface UseDeliveryCaptureResult {
   phase: ScannerPhase;
@@ -15,7 +16,6 @@ interface UseDeliveryCaptureResult {
   captureAndExtract: () => Promise<void>;
   retry: () => Promise<void>;
   confirmDelivery: () => void;
-  deliveries: Delivery[];
 }
 
 export function useDeliveryCapture(): UseDeliveryCaptureResult {
@@ -27,11 +27,11 @@ export function useDeliveryCapture(): UseDeliveryCaptureResult {
     capturePhoto,
   } = useCamera();
   const { extract } = useExtractAddress();
+  const { addDelivery } = useRoute();
 
   const [phase, setPhase] = useState<ScannerPhase>(ScannerPhase.Capturing);
   const [draft, setDraft] = useState<DeliveryDraft | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const capturedPhotoRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -92,19 +92,12 @@ export function useDeliveryCapture(): UseDeliveryCaptureResult {
       return;
     }
 
-    const delivery: Delivery = {
-      id: crypto.randomUUID(),
-      address: draft.address,
-      postalCode: draft.postalCode,
-      createdAt: new Date().toISOString(),
-    };
-
-    setDeliveries((prev) => [...prev, delivery]);
+    addDelivery({ address: draft.address, postalCode: draft.postalCode });
     setDraft(null);
     setErrorMessage(null);
     capturedPhotoRef.current = null;
     setPhase(ScannerPhase.Capturing);
-  }, [draft]);
+  }, [draft, addDelivery]);
 
   return {
     phase,
@@ -118,6 +111,5 @@ export function useDeliveryCapture(): UseDeliveryCaptureResult {
     captureAndExtract,
     retry,
     confirmDelivery,
-    deliveries,
   };
 }

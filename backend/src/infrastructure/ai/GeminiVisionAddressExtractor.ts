@@ -4,7 +4,17 @@ import type { DeliveryAddress } from '../../domain/DeliveryAddress.js';
 
 const EXTRACTION_PROMPT =
   'Sos un asistente que extrae datos de una etiqueta de envío a partir de una foto. ' +
-  'Identificá la dirección completa de destino y su código postal. ' +
+  'Identificá la dirección completa de destino: calle, número, localidad/barrio y provincia, ' +
+  'e incluí el país cuando puedas identificarlo. Devolvé la dirección como un texto completo ' +
+  'y legible que incluya todos esos datos que logres leer, no solo la calle y el número. ' +
+  'Es crítico que incluyas la localidad o barrio específico: escribir solo "Buenos Aires" es ' +
+  'ambiguo porque puede referirse a la Ciudad Autónoma de Buenos Aires o a cualquiera de sus ' +
+  'partidos (ej. Ramos Mejía, San Isidro, Quilmes, Merlo). Si la etiqueta menciona un barrio, ' +
+  'localidad o partido puntual, incluilo siempre en vez de (o además de) la provincia sola. ' +
+  'Si podés leer el código postal pero la etiqueta NO menciona el nombre de la localidad ' +
+  'explícitamente, usá tu conocimiento general de los códigos postales de Argentina para ' +
+  'identificar e incluir la localidad correspondiente en la dirección. ' +
+  'También identificá el código postal. ' +
   'Si no podés leer alguno de los dos campos con confianza, devolvé un string vacío en ese campo.';
 
 const RESPONSE_SCHEMA = {

@@ -7,13 +7,6 @@ export const ScannerPhase = {
 
 export type ScannerPhase = (typeof ScannerPhase)[keyof typeof ScannerPhase];
 
-export interface Delivery {
-  id: string;
-  address: string;
-  postalCode: string;
-  createdAt: string;
-}
-
 export interface DeliveryDraft {
   address: string;
   postalCode: string;
