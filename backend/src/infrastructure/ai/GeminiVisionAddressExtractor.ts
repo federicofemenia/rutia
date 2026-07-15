@@ -21,7 +21,13 @@ export class GeminiVisionAddressExtractor implements AddressExtractor {
   private readonly model: string;
 
   constructor(apiKey: string, model: string) {
-    this.client = new GoogleGenAI({ apiKey });
+    this.client = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        timeout: 15000,
+        retryOptions: { attempts: 2 },
+      },
+    });
     this.model = model;
   }
 
