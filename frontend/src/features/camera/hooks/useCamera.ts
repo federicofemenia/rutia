@@ -9,6 +9,7 @@ interface UseCameraResult {
   errorMessage: string | null;
   requestAccess: () => Promise<void>;
   stop: () => void;
+  capturePhoto: () => string | null;
 }
 
 export function useCamera(): UseCameraResult {
@@ -47,11 +48,30 @@ export function useCamera(): UseCameraResult {
     }
   }, []);
 
+  const capturePhoto = useCallback((): string | null => {
+    const video = videoRef.current;
+    if (!video || status !== 'streaming') {
+      return null;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const context = canvas.getContext('2d');
+    if (!context) {
+      return null;
+    }
+
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.8);
+  }, [status]);
+
   useEffect(() => {
     return () => {
       streamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);
 
-  return { videoRef, status, errorMessage, requestAccess, stop };
+  return { videoRef, status, errorMessage, requestAccess, stop, capturePhoto };
 }

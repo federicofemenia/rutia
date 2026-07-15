@@ -4,6 +4,7 @@ import { ROUTES } from '../../app/router/routes';
 
 export function HomePage() {
   const navigate = useNavigate();
+  console.log('useCamera hook called');
 
   return (
     <Stack

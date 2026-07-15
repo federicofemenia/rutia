@@ -1,9 +1,14 @@
-import { Alert, Box, Button, CircularProgress, Stack } from '@mui/material';
-import { useCamera } from '../hooks/useCamera';
+import { Alert, Box, CircularProgress, Stack } from '@mui/material';
+import type { RefObject } from 'react';
+import type { CameraStatus } from '../hooks/useCamera';
 
-export function CameraView() {
-  const { videoRef, status, errorMessage, requestAccess, stop } = useCamera();
+interface CameraFeedProps {
+  videoRef: RefObject<HTMLVideoElement | null>;
+  status: CameraStatus;
+  errorMessage: string | null;
+}
 
+export function CameraFeed({ videoRef, status, errorMessage }: CameraFeedProps) {
   return (
     <Stack spacing={2} sx={{ alignItems: 'center', width: '100%', maxWidth: 480, mx: 'auto' }}>
       <Box
@@ -35,16 +40,6 @@ export function CameraView() {
       </Box>
 
       {status === 'error' && errorMessage && <Alert severity="error">{errorMessage}</Alert>}
-
-      {status !== 'streaming' ? (
-        <Button variant="contained" onClick={requestAccess} disabled={status === 'loading'}>
-          Activar cámara
-        </Button>
-      ) : (
-        <Button variant="outlined" onClick={stop}>
-          Detener cámara
-        </Button>
-      )}
     </Stack>
   );
 }
