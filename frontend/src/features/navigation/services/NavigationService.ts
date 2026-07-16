@@ -18,6 +18,12 @@ export class NavigationService {
       throw new Error(`Proveedor de navegación desconocido: ${providerId}`);
     }
 
-    window.open(provider.buildUrl(destination), '_blank', 'noopener,noreferrer');
+    const link = document.createElement('a');
+    link.href = provider.buildUrl(destination);
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 }

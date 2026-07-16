@@ -1,3 +1,4 @@
+import { useCallback, useMemo } from 'react';
 import { GoogleMapsNavigationProvider } from '../providers/GoogleMapsNavigationProvider';
 import type { NavigationDestination, NavigationProvider } from '../providers/NavigationProvider';
 import { WazeNavigationProvider } from '../providers/WazeNavigationProvider';
@@ -11,8 +12,11 @@ interface UseNavigationResult {
 }
 
 export function useNavigation(): UseNavigationResult {
-  return {
-    providers: navigationService.getProviders(),
-    openNavigation: (providerId, destination) => navigationService.openNavigation(providerId, destination),
-  };
+  const providers = useMemo(() => navigationService.getProviders(), []);
+  const openNavigation = useCallback(
+    (providerId: string, destination: NavigationDestination) => navigationService.openNavigation(providerId, destination),
+    [],
+  );
+
+  return { providers, openNavigation };
 }

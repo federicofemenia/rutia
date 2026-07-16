@@ -14,5 +14,6 @@ export interface Delivery {
 export interface RouteSession {
   id: string;
   createdAt: Date;
+  updatedAt: Date;
   deliveries: Delivery[];
 }
