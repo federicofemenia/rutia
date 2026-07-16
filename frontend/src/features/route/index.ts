@@ -1,6 +1,7 @@
 export { DeliveryActionsSheet } from './components/DeliveryActionsSheet';
 export { DeliveryListItem } from './components/DeliveryListItem';
 export { RouteSummaryStats } from './components/RouteSummaryStats';
+export { DELIVERY_STATUS_CONFIG } from './config/deliveryStatusConfig';
 export { RouteProvider } from './context/RouteContext';
 export { useRoute } from './hooks/useRoute';
 export { DeliveryStatus, FailureReasonCode } from './types';

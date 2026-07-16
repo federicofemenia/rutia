@@ -1,4 +1,5 @@
 import HomeIcon from '@mui/icons-material/Home';
+import MapIcon from '@mui/icons-material/Map';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import RouteIcon from '@mui/icons-material/Route';
 import { BottomNavigation, BottomNavigationAction, Paper } from '@mui/material';
@@ -9,6 +10,7 @@ const NAV_ITEMS = [
   { label: 'Inicio', path: ROUTES.home, icon: <HomeIcon /> },
   { label: 'Escanear', path: ROUTES.scan, icon: <PhotoCameraIcon /> },
   { label: 'Ruta', path: ROUTES.routeSummary, icon: <RouteIcon /> },
+  { label: 'Mapa', path: ROUTES.map, icon: <MapIcon /> },
 ] as const;
 
 export function BottomNav() {

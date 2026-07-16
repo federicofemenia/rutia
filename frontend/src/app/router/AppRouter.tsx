@@ -1,5 +1,6 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { HomePage } from '../../pages/Home';
+import { MapPage } from '../../pages/Map';
 import { ScanPage } from '../../pages/Scan';
 import { RouteSummaryPage } from '../../pages/RouteSummary';
 import { ROUTES } from './routes';
@@ -11,6 +12,7 @@ export function AppRouter() {
         <Route path={ROUTES.home} element={<HomePage />} />
         <Route path={ROUTES.scan} element={<ScanPage />} />
         <Route path={ROUTES.routeSummary} element={<RouteSummaryPage />} />
+        <Route path={ROUTES.map} element={<MapPage />} />
       </Routes>
     </BrowserRouter>
   );
