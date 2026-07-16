@@ -1,9 +1,9 @@
+import Inventory2Icon from '@mui/icons-material/Inventory2';
 import { Alert, Button, Stack, Typography } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
-import { ROUTES } from '../../app/router/routes';
 import { CameraFeed } from '../../features/camera';
 import { useRoute } from '../../features/route';
-import { DeliveryForm, ScannerPhase, useDeliveryCapture } from '../../features/scanner';
+import { DeliveryReviewCard, ScannerPhase, useDeliveryCapture } from '../../features/scanner';
+import { AppLayout } from '../../shared/components';
 
 export function ScanPage() {
   const {
@@ -20,21 +20,15 @@ export function ScanPage() {
     confirmDelivery,
   } = useDeliveryCapture();
   const { session } = useRoute();
-  const navigate = useNavigate();
 
   return (
-    <Stack
-      component="main"
-      spacing={3}
-      sx={{ minHeight: '100vh', alignItems: 'center', justifyContent: 'center', px: 2, py: 4 }}
-    >
-      <Typography variant="h5" component="h1">
-        Escanear etiquetas
-      </Typography>
-
-      <Typography variant="body2" color="text.secondary">
-        📦 Entregas cargadas: {session.deliveries.length}
-      </Typography>
+    <AppLayout title="Escanear">
+      <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', justifyContent: 'center' }}>
+        <Inventory2Icon fontSize="small" color="action" />
+        <Typography variant="body2" color="text.secondary">
+          {session.deliveries.length} entregas cargadas
+        </Typography>
+      </Stack>
 
       <CameraFeed videoRef={videoRef} status={cameraStatus} errorMessage={cameraErrorMessage} />
 
@@ -66,14 +60,8 @@ export function ScanPage() {
       )}
 
       {phase === ScannerPhase.Reviewing && draft && (
-        <DeliveryForm value={draft} onChange={updateDraft} onSubmit={confirmDelivery} />
+        <DeliveryReviewCard value={draft} onChange={updateDraft} onSubmit={confirmDelivery} />
       )}
-
-      {phase === ScannerPhase.Capturing && session.deliveries.length > 0 && (
-        <Button variant="outlined" onClick={() => navigate(ROUTES.routeSummary)}>
-          Finalizar escaneo
-        </Button>
-      )}
-    </Stack>
+    </AppLayout>
   );
 }

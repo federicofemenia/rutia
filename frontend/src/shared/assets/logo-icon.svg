@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 150" fill="none">
+  <title>RUTIA</title>
+  <path
+    fill-rule="evenodd"
+    clip-rule="evenodd"
+    fill="#2F6FED"
+    d="M60,14 C34,14 14,35 14,61 C14,92 45,118 60,144 C75,118 106,92 106,61 C106,35 86,14 60,14 Z
+       M56,39 a23,23 0 1,0 0.01,0 Z"
+  />
+  <circle cx="90" cy="34" r="11" fill="#16C784" />
+</svg>

@@ -68,7 +68,7 @@ export function OptimizeRouteDialog({ deliveries, onOptimized }: OptimizeRouteDi
 
   return (
     <>
-      <Button variant="outlined" onClick={handleOpen} disabled={deliveries.length < 2}>
+      <Button variant="outlined" size="small" onClick={handleOpen} disabled={deliveries.length < 2}>
         Optimizar recorrido
       </Button>
 

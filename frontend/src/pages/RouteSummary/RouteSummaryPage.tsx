@@ -1,45 +1,50 @@
-import { Button, List, Stack, Typography } from '@mui/material';
+import { Button, List, Stack } from '@mui/material';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ROUTES } from '../../app/router/routes';
 import { NavigationDialog, type NavigationDestination } from '../../features/navigation';
-import { DeliveryListItem, RouteSummaryStats, getVisibleDeliveries, type Delivery, useRoute } from '../../features/route';
+import {
+  DeliveryActionsSheet,
+  DeliveryListItem,
+  getVisibleDeliveries,
+  RouteSummaryStats,
+  type Delivery,
+  useRoute,
+} from '../../features/route';
 import { OptimizeRouteDialog } from '../../features/route-optimization';
+import { AppLayout } from '../../shared/components';
 
 export function RouteSummaryPage() {
   const { session, reorderDeliveries } = useRoute();
-  const navigate = useNavigate();
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
+  const [navigationTarget, setNavigationTarget] = useState<Delivery | null>(null);
 
-  const navigationDestination: NavigationDestination | null = selectedDelivery
-    ? { address: selectedDelivery.address, coordinates: selectedDelivery.coordinates }
+  const navigationDestination: NavigationDestination | null = navigationTarget
+    ? { address: navigationTarget.address, coordinates: navigationTarget.coordinates }
     : null;
 
   return (
-    <Stack component="main" spacing={3} sx={{ minHeight: '100vh', px: 2, py: 4, maxWidth: 480, mx: 'auto' }}>
-      <Typography variant="h5" component="h1">
-        Resumen de ruta
-      </Typography>
-
+    <AppLayout title="Ruta">
       <RouteSummaryStats deliveries={session.deliveries} />
 
-      <List disablePadding>
-        {getVisibleDeliveries(session.deliveries).map((delivery) => (
-          <DeliveryListItem key={delivery.id} delivery={delivery} onNavigate={setSelectedDelivery} />
-        ))}
-      </List>
-
-      <Stack spacing={1}>
-        <Button variant="contained" onClick={() => navigate(ROUTES.scan)}>
-          Volver a escanear
-        </Button>
+      <Stack direction="row" spacing={1}>
         <OptimizeRouteDialog deliveries={session.deliveries} onOptimized={reorderDeliveries} />
-        <Button variant="outlined" disabled>
+        <Button variant="outlined" size="small" disabled>
           Comenzar reparto
         </Button>
       </Stack>
 
-      <NavigationDialog destination={navigationDestination} onClose={() => setSelectedDelivery(null)} />
-    </Stack>
+      <List disablePadding>
+        {getVisibleDeliveries(session.deliveries).map((delivery) => (
+          <DeliveryListItem key={delivery.id} delivery={delivery} onOpen={setSelectedDelivery} />
+        ))}
+      </List>
+
+      <DeliveryActionsSheet
+        delivery={selectedDelivery}
+        onClose={() => setSelectedDelivery(null)}
+        onNavigate={setNavigationTarget}
+      />
+
+      <NavigationDialog destination={navigationDestination} onClose={() => setNavigationTarget(null)} />
+    </AppLayout>
   );
 }
