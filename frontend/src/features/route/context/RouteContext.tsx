@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useReducer, useState, type ReactNode } from 'react';
 import { usePersistence } from '../../persistence';
 import { RestoreSessionDialog } from '../components/RestoreSessionDialog';
-import type { Delivery, RouteSession } from '../types';
+import { DeliveryStatus, type Delivery, type FailureReasonCode, type RouteSession } from '../types';
 import { RouteContext } from './routeContextObject';
 import { createRouteSession, routeReducer } from './routeReducer';
 
-type DeliveryInput = Omit<Delivery, 'id' | 'createdAt'>;
+type DeliveryInput = Omit<Delivery, 'id' | 'createdAt' | 'status'>;
 type InitPhase = 'checking' | 'awaitingChoice' | 'ready';
 
 interface RouteProviderProps {
@@ -49,7 +49,12 @@ export function RouteProvider({ children }: RouteProviderProps) {
   const addDelivery = useCallback((input: DeliveryInput) => {
     dispatch({
       type: 'ADD_DELIVERY',
-      payload: { ...input, id: crypto.randomUUID(), createdAt: new Date().toISOString() },
+      payload: {
+        ...input,
+        id: crypto.randomUUID(),
+        createdAt: new Date().toISOString(),
+        status: DeliveryStatus.Pending,
+      },
     });
   }, []);
 
@@ -60,6 +65,21 @@ export function RouteProvider({ children }: RouteProviderProps) {
   const reorderDeliveries = useCallback((deliveries: Delivery[]) => {
     dispatch({ type: 'REORDER_DELIVERIES', payload: deliveries });
   }, []);
+
+  const startDelivery = useCallback((id: string) => {
+    dispatch({ type: 'START_DELIVERY', payload: { id } });
+  }, []);
+
+  const completeDelivery = useCallback((id: string) => {
+    dispatch({ type: 'COMPLETE_DELIVERY', payload: { id } });
+  }, []);
+
+  const failDelivery = useCallback(
+    (id: string, failureReasonCode: FailureReasonCode, failureReasonDetail?: string) => {
+      dispatch({ type: 'FAIL_DELIVERY', payload: { id, failureReasonCode, failureReasonDetail } });
+    },
+    [],
+  );
 
   const startNewRoute = useCallback(() => {
     dispatch({ type: 'START_NEW_ROUTE', payload: createRouteSession() });
@@ -80,8 +100,17 @@ export function RouteProvider({ children }: RouteProviderProps) {
   }, [clearRoute]);
 
   const value = useMemo(
-    () => ({ session, addDelivery, removeDelivery, reorderDeliveries, startNewRoute }),
-    [session, addDelivery, removeDelivery, reorderDeliveries, startNewRoute],
+    () => ({
+      session,
+      addDelivery,
+      removeDelivery,
+      reorderDeliveries,
+      startDelivery,
+      completeDelivery,
+      failDelivery,
+      startNewRoute,
+    }),
+    [session, addDelivery, removeDelivery, reorderDeliveries, startDelivery, completeDelivery, failDelivery, startNewRoute],
   );
 
   return (

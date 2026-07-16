@@ -1,9 +1,9 @@
-import { Button, List, ListItemButton, ListItemText, Stack, Typography } from '@mui/material';
+import { Button, List, Stack, Typography } from '@mui/material';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../app/router/routes';
 import { NavigationDialog, type NavigationDestination } from '../../features/navigation';
-import { type Delivery, useRoute } from '../../features/route';
+import { DeliveryListItem, RouteSummaryStats, getVisibleDeliveries, type Delivery, useRoute } from '../../features/route';
 import { OptimizeRouteDialog } from '../../features/route-optimization';
 
 export function RouteSummaryPage() {
@@ -21,15 +21,11 @@ export function RouteSummaryPage() {
         Resumen de ruta
       </Typography>
 
-      <Typography variant="body2" color="text.secondary">
-        {session.deliveries.length} entregas cargadas
-      </Typography>
+      <RouteSummaryStats deliveries={session.deliveries} />
 
-      <List>
-        {session.deliveries.map((delivery) => (
-          <ListItemButton key={delivery.id} divider onClick={() => setSelectedDelivery(delivery)}>
-            <ListItemText primary={delivery.address || '(sin dirección)'} secondary={delivery.postalCode || undefined} />
-          </ListItemButton>
+      <List disablePadding>
+        {getVisibleDeliveries(session.deliveries).map((delivery) => (
+          <DeliveryListItem key={delivery.id} delivery={delivery} onNavigate={setSelectedDelivery} />
         ))}
       </List>
 
