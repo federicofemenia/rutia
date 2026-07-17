@@ -63,6 +63,12 @@ export function HomePage() {
       <Stack spacing={3} sx={{ flex: 1, alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
         <BrandLogo size="large" />
 
+        {user && (
+          <Typography variant="h6">
+            Bienvenido, {user.name}
+          </Typography>
+        )}
+
         {hasActiveRoute && (
           <Card sx={{ width: '100%', maxWidth: 360 }}>
             <CardContent>

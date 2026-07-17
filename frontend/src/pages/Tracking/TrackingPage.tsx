@@ -11,7 +11,9 @@ export function TrackingPage() {
   const deliveries = data?.session?.deliveries ?? [];
 
   return (
-    <AppLayout title={`Seguimiento: ${driverName}`}>
+    <AppLayout title={`Seguimiento: ${driverName}`} hideBottomNav>
+      <Typography variant="h6">Envíos del chofer {driverName}</Typography>
+
       {status === 'loading' && !data && (
         <Stack direction="row" spacing={2} sx={{ alignItems: 'center', justifyContent: 'center', py: 4 }}>
           <CircularProgress size={24} />
