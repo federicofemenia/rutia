@@ -1,13 +1,25 @@
-import type { Coordinates, Delivery } from '../../route';
+import { authFetch } from '../../auth';
+import type { Coordinates, Delivery, DeliveryAddress } from '../../route';
 
 export interface OptimizeRouteParams {
   deliveries: Delivery[];
   start: Coordinates;
-  end: Coordinates | { address: string };
+  end: Coordinates | { address: DeliveryAddress };
 }
 
-export async function optimizeRoute({ deliveries, start, end }: OptimizeRouteParams): Promise<Delivery[]> {
-  const response = await fetch('/api/routes/optimize', {
+export interface OptimizeRouteStats {
+  verified: number;
+  ambiguous: number;
+  notFound: number;
+}
+
+export interface OptimizeRouteResult {
+  deliveries: Delivery[];
+  stats: OptimizeRouteStats;
+}
+
+export async function optimizeRoute({ deliveries, start, end }: OptimizeRouteParams): Promise<OptimizeRouteResult> {
+  const response = await authFetch('/api/routes/optimize', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -21,6 +33,5 @@ export async function optimizeRoute({ deliveries, start, end }: OptimizeRoutePar
     throw new Error('No se pudo optimizar la ruta.');
   }
 
-  const data = (await response.json()) as { deliveries: Delivery[] };
-  return data.deliveries;
+  return (await response.json()) as OptimizeRouteResult;
 }

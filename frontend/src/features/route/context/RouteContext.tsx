@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useReducer, useState, type ReactNode } from 'react';
 import { usePersistence } from '../../persistence';
+import { pushRouteSession } from '../../route-sync';
 import { RestoreSessionDialog } from '../components/RestoreSessionDialog';
-import { DeliveryStatus, type Delivery, type FailureReasonCode, type RouteSession } from '../types';
+import { DeliveryStatus, GeocodingStatus, type Delivery, type DeliveryAddress, type FailureReasonCode, type RouteSession } from '../types';
 import { RouteContext } from './routeContextObject';
 import { createRouteSession, routeReducer } from './routeReducer';
 
-type DeliveryInput = Omit<Delivery, 'id' | 'createdAt' | 'status'>;
+type DeliveryInput = Omit<Delivery, 'id' | 'createdAt' | 'status' | 'geocodingStatus'>;
 type InitPhase = 'checking' | 'awaitingChoice' | 'ready';
 
 interface RouteProviderProps {
@@ -43,6 +44,11 @@ export function RouteProvider({ children }: RouteProviderProps) {
   useEffect(() => {
     if (phase === 'ready') {
       saveRoute(session);
+      // Espejo para el seguimiento del admin — si falla (sin red, token vencido, etc.) no debe
+      // afectar el uso normal de la app, que sigue funcionando 100% local.
+      pushRouteSession(session).catch((error) => {
+        console.error('No se pudo sincronizar la ruta con el servidor', error);
+      });
     }
   }, [session, phase, saveRoute]);
 
@@ -54,6 +60,7 @@ export function RouteProvider({ children }: RouteProviderProps) {
         id: crypto.randomUUID(),
         createdAt: new Date().toISOString(),
         status: DeliveryStatus.Pending,
+        geocodingStatus: GeocodingStatus.Pending,
       },
     });
   }, []);
@@ -80,6 +87,10 @@ export function RouteProvider({ children }: RouteProviderProps) {
     },
     [],
   );
+
+  const editDeliveryAddress = useCallback((id: string, address: DeliveryAddress) => {
+    dispatch({ type: 'UPDATE_DELIVERY_ADDRESS', payload: { id, address } });
+  }, []);
 
   const startNewRoute = useCallback(() => {
     dispatch({ type: 'START_NEW_ROUTE', payload: createRouteSession() });
@@ -108,9 +119,20 @@ export function RouteProvider({ children }: RouteProviderProps) {
       startDelivery,
       completeDelivery,
       failDelivery,
+      editDeliveryAddress,
       startNewRoute,
     }),
-    [session, addDelivery, removeDelivery, reorderDeliveries, startDelivery, completeDelivery, failDelivery, startNewRoute],
+    [
+      session,
+      addDelivery,
+      removeDelivery,
+      reorderDeliveries,
+      startDelivery,
+      completeDelivery,
+      failDelivery,
+      editDeliveryAddress,
+      startNewRoute,
+    ],
   );
 
   return (

@@ -1,3 +1,5 @@
+import type { DeliveryAddress } from '../route';
+
 export const ScannerPhase = {
   Capturing: 'capturing',
   Extracting: 'extracting',
@@ -7,7 +9,4 @@ export const ScannerPhase = {
 
 export type ScannerPhase = (typeof ScannerPhase)[keyof typeof ScannerPhase];
 
-export interface DeliveryDraft {
-  address: string;
-  postalCode: string;
-}
+export type DeliveryDraft = DeliveryAddress;

@@ -1,5 +1,6 @@
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import EditIcon from '@mui/icons-material/Edit';
 import NavigationIcon from '@mui/icons-material/Navigation';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { Divider, List, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
@@ -7,8 +8,10 @@ import { useState } from 'react';
 import { BottomSheet } from '../../../shared/components';
 import { FAILURE_REASON_LABELS } from '../config/failureReasonConfig';
 import { useRoute } from '../hooks/useRoute';
-import { DeliveryStatus, type Delivery, type FailureReasonCode } from '../types';
+import { DeliveryStatus, type Delivery, type DeliveryAddress, type FailureReasonCode } from '../types';
 import { formatLastModified } from '../utils/formatLastModified';
+import { formatLocalityLine, formatStreetLine } from '../utils/formatDeliveryAddress';
+import { EditDeliveryAddressDialog } from './EditDeliveryAddressDialog';
 import { FailDeliveryDialog } from './FailDeliveryDialog';
 
 interface DeliveryActionsSheetProps {
@@ -18,8 +21,9 @@ interface DeliveryActionsSheetProps {
 }
 
 export function DeliveryActionsSheet({ delivery, onClose, onNavigate }: DeliveryActionsSheetProps) {
-  const { startDelivery, completeDelivery, failDelivery } = useRoute();
+  const { startDelivery, completeDelivery, failDelivery, editDeliveryAddress } = useRoute();
   const [failingDeliveryId, setFailingDeliveryId] = useState<string | null>(null);
+  const [editingDelivery, setEditingDelivery] = useState<Delivery | null>(null);
 
   const handleFailConfirm = (failureReasonCode: FailureReasonCode, failureReasonDetail?: string) => {
     if (failingDeliveryId) {
@@ -28,17 +32,24 @@ export function DeliveryActionsSheet({ delivery, onClose, onNavigate }: Delivery
     setFailingDeliveryId(null);
   };
 
+  const handleSaveAddress = (address: DeliveryAddress) => {
+    if (editingDelivery) {
+      editDeliveryAddress(editingDelivery.id, address);
+    }
+    setEditingDelivery(null);
+  };
+
   return (
     <>
       <BottomSheet open={delivery !== null} onClose={onClose}>
         {delivery && (
           <>
             <Typography variant="subtitle1" noWrap>
-              {delivery.address || '(sin dirección)'}
+              {formatStreetLine(delivery.address) || '(sin dirección)'}
             </Typography>
-            {delivery.postalCode && (
+            {formatLocalityLine(delivery.address) && (
               <Typography variant="caption" color="text.secondary">
-                CP {delivery.postalCode}
+                {formatLocalityLine(delivery.address)}
               </Typography>
             )}
 
@@ -58,6 +69,19 @@ export function DeliveryActionsSheet({ delivery, onClose, onNavigate }: Delivery
             )}
 
             <List disablePadding>
+              <ListItemButton
+                disableGutters
+                onClick={() => {
+                  setEditingDelivery(delivery);
+                  onClose();
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 36 }}>
+                  <EditIcon />
+                </ListItemIcon>
+                <ListItemText primary="Editar dirección" />
+              </ListItemButton>
+
               {delivery.status === DeliveryStatus.Pending && (
                 <ListItemButton
                   disableGutters
@@ -129,6 +153,8 @@ export function DeliveryActionsSheet({ delivery, onClose, onNavigate }: Delivery
         onClose={() => setFailingDeliveryId(null)}
         onConfirm={handleFailConfirm}
       />
+
+      <EditDeliveryAddressDialog delivery={editingDelivery} onClose={() => setEditingDelivery(null)} onSave={handleSaveAddress} />
     </>
   );
 }

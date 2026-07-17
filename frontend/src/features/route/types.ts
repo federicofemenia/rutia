@@ -3,6 +3,25 @@ export interface Coordinates {
   longitude: number;
 }
 
+export interface DeliveryAddress {
+  street: string;
+  streetNumber?: string;
+  postalCode?: string;
+  locality: string;
+  province: string;
+  country: string;
+  rawAddress?: string;
+}
+
+export const GeocodingStatus = {
+  Pending: 'pending',
+  Verified: 'verified',
+  Ambiguous: 'ambiguous',
+  NotFound: 'notFound',
+} as const;
+
+export type GeocodingStatus = (typeof GeocodingStatus)[keyof typeof GeocodingStatus];
+
 export const DeliveryStatus = {
   Pending: 'pending',
   InProgress: 'inProgress',
@@ -24,10 +43,10 @@ export type FailureReasonCode = (typeof FailureReasonCode)[keyof typeof FailureR
 
 export interface Delivery {
   id: string;
-  address: string;
-  postalCode: string;
+  address: DeliveryAddress;
   createdAt: string;
   coordinates?: Coordinates;
+  geocodingStatus: GeocodingStatus;
   status: DeliveryStatus;
   deliveredAt?: string;
   failureReasonCode?: FailureReasonCode;

@@ -1,13 +1,12 @@
 import { useCallback, useState } from 'react';
-import type { Delivery } from '../../route';
-import { optimizeRoute, type OptimizeRouteParams } from '../api/optimizeRoute';
+import { optimizeRoute, type OptimizeRouteParams, type OptimizeRouteResult } from '../api/optimizeRoute';
 
 export type OptimizeRouteStatus = 'idle' | 'loading' | 'success' | 'error';
 
 interface UseOptimizeRouteResult {
   status: OptimizeRouteStatus;
   errorMessage: string | null;
-  optimize: (params: OptimizeRouteParams) => Promise<Delivery[] | null>;
+  optimize: (params: OptimizeRouteParams) => Promise<OptimizeRouteResult | null>;
 }
 
 export function useOptimizeRoute(): UseOptimizeRouteResult {

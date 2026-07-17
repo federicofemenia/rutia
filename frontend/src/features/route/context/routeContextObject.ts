@@ -1,7 +1,7 @@
 import { createContext } from 'react';
-import type { Delivery, FailureReasonCode, RouteSession } from '../types';
+import type { Delivery, DeliveryAddress, FailureReasonCode, RouteSession } from '../types';
 
-type DeliveryInput = Omit<Delivery, 'id' | 'createdAt' | 'status'>;
+type DeliveryInput = Omit<Delivery, 'id' | 'createdAt' | 'status' | 'geocodingStatus'>;
 
 export interface RouteContextValue {
   session: RouteSession;
@@ -11,6 +11,7 @@ export interface RouteContextValue {
   startDelivery: (id: string) => void;
   completeDelivery: (id: string) => void;
   failDelivery: (id: string, failureReasonCode: FailureReasonCode, failureReasonDetail?: string) => void;
+  editDeliveryAddress: (id: string, address: DeliveryAddress) => void;
   startNewRoute: () => void;
 }
 

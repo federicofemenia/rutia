@@ -1,2 +1,2 @@
-export { OptimizeRouteDialog } from './components/OptimizeRouteDialog';
+export { StartDeliveryButton } from './components/StartDeliveryButton';
 export { useOptimizeRoute } from './hooks/useOptimizeRoute';

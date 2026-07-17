@@ -53,7 +53,7 @@ export function useDeliveryCapture(): UseDeliveryCaptureResult {
         return;
       }
 
-      setDraft({ address: result.address, postalCode: result.postalCode });
+      setDraft(result);
       setPhase(ScannerPhase.Reviewing);
     },
     [extract],
@@ -92,7 +92,7 @@ export function useDeliveryCapture(): UseDeliveryCaptureResult {
       return;
     }
 
-    addDelivery({ address: draft.address, postalCode: draft.postalCode });
+    addDelivery({ address: draft });
     setDraft(null);
     setErrorMessage(null);
     capturedPhotoRef.current = null;

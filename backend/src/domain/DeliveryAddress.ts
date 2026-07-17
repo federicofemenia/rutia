@@ -1,4 +1,9 @@
 export interface DeliveryAddress {
-  address: string;
-  postalCode: string;
+  street: string;
+  streetNumber?: string;
+  postalCode?: string;
+  locality: string;
+  province: string;
+  country: string;
+  rawAddress?: string;
 }

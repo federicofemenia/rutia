@@ -1,11 +1,15 @@
+export { AddressFields } from './components/AddressFields';
 export { DeliveryActionsSheet } from './components/DeliveryActionsSheet';
 export { DeliveryListItem } from './components/DeliveryListItem';
+export { DeliveryStatusChip } from './components/DeliveryStatusChip';
 export { RouteSummaryStats } from './components/RouteSummaryStats';
+export { ARGENTINE_PROVINCES, isArgentineProvince, type ArgentineProvince } from './config/argentineProvinces';
 export { DELIVERY_STATUS_CONFIG } from './config/deliveryStatusConfig';
 export { RouteProvider } from './context/RouteContext';
 export { useRoute } from './hooks/useRoute';
-export { DeliveryStatus, FailureReasonCode } from './types';
-export type { Coordinates, Delivery, RouteSession } from './types';
+export { DeliveryStatus, FailureReasonCode, GeocodingStatus } from './types';
+export type { Coordinates, Delivery, DeliveryAddress, RouteSession } from './types';
+export { formatFullAddress, formatLocalityLine, formatStreetLine, hasStructuredAddress } from './utils/formatDeliveryAddress';
 export { formatLastModified } from './utils/formatLastModified';
 export { getVisibleDeliveries } from './utils/getVisibleDeliveries';
 export { selectNextDelivery } from './utils/selectNextDelivery';

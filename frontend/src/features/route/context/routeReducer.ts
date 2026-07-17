@@ -1,4 +1,5 @@
-import { DeliveryStatus, type Delivery, type FailureReasonCode, type RouteSession } from '../types';
+import { DeliveryStatus, GeocodingStatus, type Delivery, type DeliveryAddress, type FailureReasonCode, type RouteSession } from '../types';
+import { hasAddressChanged } from '../utils/hasAddressChanged';
 
 export type RouteAction =
   | { type: 'ADD_DELIVERY'; payload: Delivery }
@@ -7,6 +8,7 @@ export type RouteAction =
   | { type: 'START_DELIVERY'; payload: { id: string } }
   | { type: 'COMPLETE_DELIVERY'; payload: { id: string } }
   | { type: 'FAIL_DELIVERY'; payload: { id: string; failureReasonCode: FailureReasonCode; failureReasonDetail?: string } }
+  | { type: 'UPDATE_DELIVERY_ADDRESS'; payload: { id: string; address: DeliveryAddress } }
   | { type: 'RESTORE_SESSION'; payload: RouteSession }
   | { type: 'START_NEW_ROUTE'; payload: RouteSession };
 
@@ -84,6 +86,25 @@ export function routeReducer(state: RouteSession, action: RouteAction): RouteSes
           status: DeliveryStatus.Failed,
           failureReasonCode: action.payload.failureReasonCode,
           failureReasonDetail: action.payload.failureReasonDetail,
+        }),
+        updatedAt: new Date(),
+      };
+    }
+
+    case 'UPDATE_DELIVERY_ADDRESS': {
+      const target = state.deliveries.find((delivery) => delivery.id === action.payload.id);
+
+      if (!target) {
+        return state;
+      }
+
+      const addressChanged = hasAddressChanged(target.address, action.payload.address);
+
+      return {
+        ...state,
+        deliveries: updateDelivery(state.deliveries, action.payload.id, {
+          address: action.payload.address,
+          ...(addressChanged ? { coordinates: undefined, geocodingStatus: GeocodingStatus.Pending } : {}),
         }),
         updatedAt: new Date(),
       };

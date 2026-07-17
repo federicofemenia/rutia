@@ -2,7 +2,7 @@ import { Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useMemo } from 'react';
 import { MapContainer, Marker, Polyline, Popup, TileLayer } from 'react-leaflet';
-import { DELIVERY_STATUS_CONFIG, type Coordinates, type Delivery } from '../../route';
+import { DELIVERY_STATUS_CONFIG, formatLocalityLine, formatStreetLine, type Coordinates, type Delivery } from '../../route';
 import { MAP_CONFIG } from '../config/mapConfig';
 import { createCurrentLocationIcon } from '../utils/createCurrentLocationIcon';
 import { createDeliveryMarkerIcon } from '../utils/createDeliveryMarkerIcon';
@@ -66,10 +66,10 @@ export function DeliveryMap({ deliveries, currentLocation, onSelectDelivery }: D
           >
             <Popup>
               <Typography variant="subtitle2">Parada {order}</Typography>
-              <Typography variant="body2">{delivery.address || '(sin dirección)'}</Typography>
-              {delivery.postalCode && (
+              <Typography variant="body2">{formatStreetLine(delivery.address) || '(sin dirección)'}</Typography>
+              {formatLocalityLine(delivery.address) && (
                 <Typography variant="caption" color="text.secondary">
-                  CP {delivery.postalCode}
+                  {formatLocalityLine(delivery.address)}
                 </Typography>
               )}
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>

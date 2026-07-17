@@ -1,40 +1,48 @@
-import {
-  Alert,
-  Button,
-  CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
-import { useState } from 'react';
+import { Alert, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Typography } from '@mui/material';
+import { useCallback, useEffect, useState } from 'react';
 import { useCurrentLocation } from '../../geolocation';
-import type { Coordinates, Delivery } from '../../route';
+import { AddressFields, type Coordinates, type Delivery, type DeliveryAddress } from '../../route';
+import type { OptimizeRouteResult } from '../api/optimizeRoute';
 import { useOptimizeRoute } from '../hooks/useOptimizeRoute';
 
-type Step = 'locating' | 'locationError' | 'askEnd' | 'enterAddress' | 'submitting' | 'submitError';
+type Step = 'locating' | 'locationError' | 'askEnd' | 'enterAddress' | 'submitting' | 'submitError' | 'result';
 
 interface OptimizeRouteDialogProps {
+  open: boolean;
   deliveries: Delivery[];
+  onClose: () => void;
   onOptimized: (deliveries: Delivery[]) => void;
 }
 
-export function OptimizeRouteDialog({ deliveries, onOptimized }: OptimizeRouteDialogProps) {
-  const [open, setOpen] = useState(false);
+const EMPTY_CUSTOM_ADDRESS: DeliveryAddress = { street: '', locality: '', province: '', country: 'Argentina' };
+
+function formatResultSummary({ stats }: OptimizeRouteResult): string {
+  const readyLabel = stats.verified === 1 ? 'entrega lista' : 'entregas listas';
+  const summary = `Ruta optimizada. ${stats.verified} ${readyLabel}.`;
+
+  const needsReview = stats.ambiguous + stats.notFound;
+  if (needsReview === 0) {
+    return summary;
+  }
+
+  const reviewLabel = needsReview === 1 ? 'requiere revisión' : 'requieren revisión';
+  return `${summary} ${needsReview} ${reviewLabel}.`;
+}
+
+export function OptimizeRouteDialog({ open, deliveries, onClose, onOptimized }: OptimizeRouteDialogProps) {
   const [step, setStep] = useState<Step>('locating');
   const [start, setStart] = useState<Coordinates | null>(null);
-  const [customAddress, setCustomAddress] = useState('');
+  const [customAddress, setCustomAddress] = useState<DeliveryAddress>(EMPTY_CUSTOM_ADDRESS);
+  const [result, setResult] = useState<OptimizeRouteResult | null>(null);
 
   const { requestLocation, errorMessage: locationErrorMessage } = useCurrentLocation();
   const { optimize, errorMessage: optimizeErrorMessage } = useOptimizeRoute();
 
-  const handleOpen = async () => {
-    setOpen(true);
-    setStep('locating');
+  const canConfirmCustomAddress =
+    customAddress.street.trim().length > 0 && customAddress.locality.trim().length > 0 && customAddress.province.trim().length > 0;
 
+  const startLocating = useCallback(async () => {
+    setStep('locating');
     const coordinates = await requestLocation();
 
     if (coordinates) {
@@ -43,109 +51,128 @@ export function OptimizeRouteDialog({ deliveries, onOptimized }: OptimizeRouteDi
     } else {
       setStep('locationError');
     }
-  };
+  }, [requestLocation]);
 
-  const handleClose = () => {
-    setOpen(false);
-    setCustomAddress('');
-  };
+  useEffect(() => {
+    if (open) {
+      setCustomAddress(EMPTY_CUSTOM_ADDRESS);
+      setResult(null);
+      startLocating();
+    }
+  }, [open, startLocating]);
 
-  const runOptimize = async (end: Coordinates | { address: string }) => {
+  const runOptimize = async (end: Coordinates | { address: DeliveryAddress }) => {
     if (!start) {
       return;
     }
 
     setStep('submitting');
-    const result = await optimize({ deliveries, start, end });
+    const optimizeResult = await optimize({ deliveries, start, end });
 
-    if (result) {
-      onOptimized(result);
-      handleClose();
+    if (optimizeResult) {
+      setResult(optimizeResult);
+      setStep('result');
     } else {
       setStep('submitError');
     }
   };
 
+  const handleDone = () => {
+    if (result) {
+      onOptimized(result.deliveries);
+    }
+    onClose();
+  };
+
   return (
-    <>
-      <Button variant="outlined" size="small" onClick={handleOpen} disabled={deliveries.length < 2}>
-        Optimizar recorrido
-      </Button>
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+      <DialogTitle>Preparando ruta</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ pt: 1 }}>
+          {step === 'locating' && (
+            <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+              <CircularProgress size={20} />
+              <Typography variant="body2">Obteniendo tu ubicación actual...</Typography>
+            </Stack>
+          )}
 
-      <Dialog open={open} onClose={handleClose} fullWidth maxWidth="xs">
-        <DialogTitle>Optimizar recorrido</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ pt: 1 }}>
-            {step === 'locating' && (
-              <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
-                <CircularProgress size={20} />
-                <Typography variant="body2">Obteniendo tu ubicación actual...</Typography>
+          {step === 'locationError' && (
+            <>
+              <Alert severity="error">{locationErrorMessage}</Alert>
+              <Button variant="contained" onClick={startLocating}>
+                Reintentar
+              </Button>
+            </>
+          )}
+
+          {step === 'askEnd' && (
+            <>
+              <Typography variant="body2">¿Querés terminar en tu ubicación actual?</Typography>
+              <Stack direction="row" spacing={1}>
+                <Button variant="contained" onClick={() => start && runOptimize(start)}>
+                  Sí
+                </Button>
+                <Button variant="outlined" onClick={() => setStep('enterAddress')}>
+                  No
+                </Button>
               </Stack>
-            )}
+            </>
+          )}
 
-            {step === 'locationError' && (
-              <>
-                <Alert severity="error">{locationErrorMessage}</Alert>
-                <Button variant="contained" onClick={handleOpen}>
-                  Reintentar
-                </Button>
-              </>
-            )}
+          {step === 'enterAddress' && (
+            <>
+              <AddressFields
+                value={customAddress}
+                onChange={(patch) => setCustomAddress((previous) => ({ ...previous, ...patch }))}
+              />
+              {!canConfirmCustomAddress && (
+                <Alert severity="warning" variant="outlined">
+                  Completá calle, localidad y provincia para confirmar.
+                </Alert>
+              )}
+              <Button
+                variant="contained"
+                onClick={() => runOptimize({ address: customAddress })}
+                disabled={!canConfirmCustomAddress}
+              >
+                Confirmar
+              </Button>
+            </>
+          )}
 
-            {step === 'askEnd' && (
-              <>
-                <Typography variant="body2">¿Querés terminar en tu ubicación actual?</Typography>
-                <Stack direction="row" spacing={1}>
-                  <Button variant="contained" onClick={() => start && runOptimize(start)}>
-                    Sí
-                  </Button>
-                  <Button variant="outlined" onClick={() => setStep('enterAddress')}>
-                    No
-                  </Button>
-                </Stack>
-              </>
-            )}
+          {step === 'submitting' && (
+            <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+              <CircularProgress size={20} />
+              <Typography variant="body2">Optimizando recorrido...</Typography>
+            </Stack>
+          )}
 
-            {step === 'enterAddress' && (
-              <>
-                <TextField
-                  label="Dirección de destino"
-                  value={customAddress}
-                  onChange={(event) => setCustomAddress(event.target.value)}
-                  fullWidth
-                  autoFocus
-                />
-                <Button
-                  variant="contained"
-                  onClick={() => runOptimize({ address: customAddress })}
-                  disabled={customAddress.trim().length === 0}
-                >
-                  Confirmar
-                </Button>
-              </>
-            )}
+          {step === 'submitError' && (
+            <>
+              <Alert severity="error">{optimizeErrorMessage}</Alert>
+              <Button variant="contained" onClick={() => setStep('askEnd')}>
+                Volver a intentar
+              </Button>
+            </>
+          )}
 
-            {step === 'submitting' && (
-              <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
-                <CircularProgress size={20} />
-                <Typography variant="body2">Optimizando recorrido...</Typography>
-              </Stack>
-            )}
-
-            {step === 'submitError' && (
-              <>
-                <Alert severity="error">{optimizeErrorMessage}</Alert>
-                <Button variant="contained" onClick={() => setStep('askEnd')}>
-                  Volver a intentar
-                </Button>
-              </>
-            )}
-          </Stack>
-        </DialogContent>
+          {step === 'result' && result && (
+            <>
+              <Alert severity={result.stats.ambiguous + result.stats.notFound > 0 ? 'warning' : 'success'}>
+                {formatResultSummary(result)}
+              </Alert>
+              <Button variant="contained" onClick={handleDone}>
+                Listo
+              </Button>
+            </>
+          )}
+        </Stack>
+      </DialogContent>
+      {step !== 'result' && (
         <DialogActions>
-          <Button onClick={handleClose}>Cancelar</Button>
+          <Button onClick={onClose}>Cancelar</Button>
         </DialogActions>
-      </Dialog>
-    </>
+      )}
+    </Dialog>
   );
 }

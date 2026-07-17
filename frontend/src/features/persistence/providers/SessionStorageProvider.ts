@@ -1,13 +1,18 @@
 import type { RouteSession } from '../../route';
+import { migratePersistedRouteSession } from '../utils/migrateRouteSession';
 import type { PersistenceProvider } from './PersistenceProvider';
 
 const STORAGE_KEY = 'rutia:route-session';
-const CURRENT_VERSION = 1;
+const CURRENT_VERSION = 2;
 
 interface PersistedRouteSession {
   version: number;
   updatedAt: string;
   route: RouteSession;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
 }
 
 export class SessionStorageProvider implements PersistenceProvider {
@@ -32,18 +37,25 @@ export class SessionStorageProvider implements PersistenceProvider {
         return null;
       }
 
-      const record = JSON.parse(raw) as PersistedRouteSession;
+      const record: unknown = JSON.parse(raw);
+      const routeCandidate = isRecord(record) ? record.route : undefined;
+      const migrated = migratePersistedRouteSession(routeCandidate);
 
-      if (record.version !== CURRENT_VERSION) {
+      if (!migrated) {
+        console.warn('RUTIA: se descartó una sesión persistida corrupta o irreconocible. Se inicia una ruta vacía.');
         return null;
       }
 
-      return {
-        ...record.route,
-        createdAt: new Date(record.route.createdAt),
-        updatedAt: new Date(record.route.updatedAt),
-      };
+      const persistedVersion = isRecord(record) && typeof record.version === 'number' ? record.version : undefined;
+
+      if (migrated.wasLegacy || persistedVersion !== CURRENT_VERSION) {
+        // Persiste ya migrada como v2 para no repetir la migración en cada carga.
+        await this.save(migrated.session);
+      }
+
+      return migrated.session;
     } catch {
+      console.warn('RUTIA: no se pudo leer la sesión persistida (JSON inválido). Se inicia una ruta vacía.');
       return null;
     }
   }

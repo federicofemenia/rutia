@@ -1,11 +1,14 @@
 import Inventory2Icon from '@mui/icons-material/Inventory2';
 import { Alert, Button, Stack, Typography } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
+import { ROUTES } from '../../app/router/routes';
 import { CameraFeed } from '../../features/camera';
 import { useRoute } from '../../features/route';
 import { DeliveryReviewCard, ScannerPhase, useDeliveryCapture } from '../../features/scanner';
 import { AppLayout } from '../../shared/components';
 
 export function ScanPage() {
+  const navigate = useNavigate();
   const {
     phase,
     videoRef,
@@ -39,15 +42,23 @@ export function ScanPage() {
       )}
 
       {(phase === ScannerPhase.Capturing || phase === ScannerPhase.Extracting) && cameraStatus === 'streaming' && (
-        <Button
-          variant="contained"
-          size="large"
-          onClick={captureAndExtract}
-          loading={phase === ScannerPhase.Extracting}
-          loadingPosition="start"
-        >
-          {phase === ScannerPhase.Extracting ? 'Extrayendo dirección...' : 'Escanear etiqueta'}
-        </Button>
+        <Stack spacing={1}>
+          <Button
+            variant="contained"
+            size="large"
+            onClick={captureAndExtract}
+            loading={phase === ScannerPhase.Extracting}
+            loadingPosition="start"
+          >
+            {phase === ScannerPhase.Extracting ? 'Extrayendo dirección...' : 'Escanear etiqueta'}
+          </Button>
+
+          {phase === ScannerPhase.Capturing && session.deliveries.length > 0 && (
+            <Button variant="outlined" size="large" onClick={() => navigate(ROUTES.home)}>
+              Terminar de cargar
+            </Button>
+          )}
+        </Stack>
       )}
 
       {phase === ScannerPhase.Error && (
