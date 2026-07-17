@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { DeliveryStatusChip, formatLocalityLine, formatStreetLine } from '../../features/route';
 import { useDriverTracking } from '../../features/tracking';
 import { AppLayout } from '../../shared/components';
+import { HOME_ONLY_NAV_ITEMS } from '../../shared/config/bottomNavItems';
 
 export function TrackingPage() {
   const { driverName = '' } = useParams<{ driverName: string }>();
@@ -11,7 +12,7 @@ export function TrackingPage() {
   const deliveries = data?.session?.deliveries ?? [];
 
   return (
-    <AppLayout title={`Seguimiento: ${driverName}`} hideBottomNav>
+    <AppLayout title={`Seguimiento: ${driverName}`} bottomNavItems={HOME_ONLY_NAV_ITEMS}>
       <Typography variant="h6">Envíos del chofer {driverName}</Typography>
 
       {status === 'loading' && !data && (

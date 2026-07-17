@@ -1,19 +1,12 @@
-import HomeIcon from '@mui/icons-material/Home';
-import MapIcon from '@mui/icons-material/Map';
-import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
-import RouteIcon from '@mui/icons-material/Route';
 import { BottomNavigation, BottomNavigationAction, Paper } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ROUTES } from '../../app/router/routes';
+import { BOTTOM_NAV_ITEMS, type BottomNavItem } from '../config/bottomNavItems';
 
-const NAV_ITEMS = [
-  { label: 'Inicio', path: ROUTES.home, icon: <HomeIcon /> },
-  { label: 'Escanear', path: ROUTES.scan, icon: <PhotoCameraIcon /> },
-  { label: 'Ruta', path: ROUTES.routeSummary, icon: <RouteIcon /> },
-  { label: 'Mapa', path: ROUTES.map, icon: <MapIcon /> },
-] as const;
+interface BottomNavProps {
+  items?: BottomNavItem[];
+}
 
-export function BottomNav() {
+export function BottomNav({ items = BOTTOM_NAV_ITEMS }: BottomNavProps) {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -23,7 +16,7 @@ export function BottomNav() {
       sx={{ position: 'sticky', bottom: 0, zIndex: 1, borderTop: '1px solid', borderColor: 'divider' }}
     >
       <BottomNavigation value={location.pathname} showLabels sx={{ height: 56 }}>
-        {NAV_ITEMS.map((item) => (
+        {items.map((item) => (
           <BottomNavigationAction
             key={item.path}
             label={item.label}
