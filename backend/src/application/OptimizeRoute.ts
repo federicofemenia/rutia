@@ -1,6 +1,7 @@
 import type { Coordinates } from '../domain/Coordinates.js';
 import type { Delivery } from '../domain/Delivery.js';
 import type { DeliveryAddress } from '../domain/DeliveryAddress.js';
+import { DeliveryStatus } from '../domain/DeliveryStatus.js';
 import type { Geocoder } from '../domain/Geocoder.js';
 import { GeocodingStatus } from '../domain/GeocodingStatus.js';
 import type { RouteOptimizer } from '../domain/RouteOptimizer.js';
@@ -37,6 +38,17 @@ export class OptimizeRoute {
   ) {}
 
   async execute({ deliveries, start, end }: OptimizeRouteInput): Promise<OptimizeRouteResult> {
+    // Las entregas ya entregadas o fallidas son historial: nunca se vuelven a geocodificar ni
+    // a reordenar, sin importar dónde queden respecto al punto de partida actual — si no las
+    // separamos acá, el optimizador las trata como una parada más y puede "moverlas" a
+    // cualquier posición (incluida la primera) cuando se reoptimiza con paradas nuevas.
+    const finishedDeliveries = deliveries.filter(
+      (delivery) => delivery.status === DeliveryStatus.Delivered || delivery.status === DeliveryStatus.Failed,
+    );
+    const routableDeliveries = deliveries.filter(
+      (delivery) => delivery.status !== DeliveryStatus.Delivered && delivery.status !== DeliveryStatus.Failed,
+    );
+
     let calledGeocoderPreviously = false;
 
     const geocode = async (address: DeliveryAddress) => {
@@ -49,7 +61,7 @@ export class OptimizeRoute {
 
     const resolvedDeliveries: Delivery[] = [];
 
-    for (const delivery of deliveries) {
+    for (const delivery of routableDeliveries) {
       // Ya verificada (y, por ahora, la dirección nunca cambia después de confirmada — no hay
       // edición post-confirmación todavía) — se reutiliza sin volver a geocodificar.
       if (delivery.geocodingStatus === GeocodingStatus.Verified && delivery.coordinates) {
@@ -62,12 +74,13 @@ export class OptimizeRoute {
 
         if (result.status === 'verified') {
           resolvedDeliveries.push({ ...delivery, coordinates: result.coordinates, geocodingStatus: GeocodingStatus.Verified });
+        } else if (result.status === 'ambiguous') {
+          // Conserva las coordenadas aunque queden marcadas para revisión: siguen sin usarse
+          // para ordenar la ruta (solo entra al optimizador lo `Verified`), pero le dan al
+          // chofer un punto navegable en vez de nada mientras decide si confiar en él.
+          resolvedDeliveries.push({ ...delivery, coordinates: result.coordinates, geocodingStatus: GeocodingStatus.Ambiguous });
         } else {
-          resolvedDeliveries.push({
-            ...delivery,
-            coordinates: undefined,
-            geocodingStatus: result.status === 'ambiguous' ? GeocodingStatus.Ambiguous : GeocodingStatus.NotFound,
-          });
+          resolvedDeliveries.push({ ...delivery, coordinates: undefined, geocodingStatus: GeocodingStatus.NotFound });
         }
       } catch (error) {
         // Error temporal del proveedor (red, rate limit, respuesta inválida): no es lo mismo que
@@ -91,20 +104,30 @@ export class OptimizeRoute {
     };
 
     if (verifiedDeliveries.length === 0) {
-      return { deliveries: unresolvedDeliveries, stats };
+      return { deliveries: [...finishedDeliveries, ...unresolvedDeliveries], stats };
     }
 
     const endCoordinates = 'address' in end ? await this.resolveEndCoordinates(end.address, calledGeocoderPreviously) : end;
 
+    // La entrega en curso ya está comprometida (el chofer ya la eligió y puede estar en camino):
+    // no se reordena, queda como la próxima parada fija. El resto se optimiza a partir de ahí
+    // (o del punto de partida dado, si no hay ninguna en curso).
+    const inProgressDelivery = verifiedDeliveries.find((delivery) => delivery.status === DeliveryStatus.InProgress);
+    const reorderableDeliveries = verifiedDeliveries.filter((delivery) => delivery !== inProgressDelivery);
+    const optimizerStart = inProgressDelivery ? inProgressDelivery.coordinates : start;
+
     const order = await this.routeOptimizer.optimize({
-      start,
-      stops: verifiedDeliveries.map((delivery) => delivery.coordinates),
+      start: optimizerStart,
+      stops: reorderableDeliveries.map((delivery) => delivery.coordinates),
       end: endCoordinates,
     });
 
-    const orderedVerifiedDeliveries = order.map((index) => verifiedDeliveries[index]);
+    const orderedReorderableDeliveries = order.map((index) => reorderableDeliveries[index]);
+    const orderedVerifiedDeliveries = inProgressDelivery
+      ? [inProgressDelivery, ...orderedReorderableDeliveries]
+      : orderedReorderableDeliveries;
 
-    return { deliveries: [...orderedVerifiedDeliveries, ...unresolvedDeliveries], stats };
+    return { deliveries: [...finishedDeliveries, ...orderedVerifiedDeliveries, ...unresolvedDeliveries], stats };
   }
 
   private async resolveEndCoordinates(address: DeliveryAddress, calledGeocoderPreviously: boolean): Promise<Coordinates> {

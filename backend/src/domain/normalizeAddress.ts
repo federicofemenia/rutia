@@ -74,3 +74,25 @@ export function normalizePostalCode(value: string): string | undefined {
   const cleaned = value.replace(/\s+/g, '').toUpperCase();
   return cleaned.length > 0 ? cleaned : undefined;
 }
+
+// Nominatim suele anteponer el nombre administrativo del partido/municipio/departamento al
+// nombre de la localidad propiamente dicha (ej. "Partido de Merlo" en vez de "Merlo") — quitarlo
+// es necesario para poder comparar contra lo que el repartidor (o Gemini) escribió, que rara vez
+// incluye ese prefijo.
+const LOCALITY_PREFIXES = /^(partido de|municipio de|departamento de|provincia de)\s+/;
+
+/**
+ * Normaliza un nombre de localidad para comparaciones tolerantes: minúsculas, sin tildes, sin
+ * puntuación, sin espacios duplicados y sin prefijos administrativos comunes. Usada por
+ * `NominatimCandidateSelector` para decidir si la localidad de un candidato coincide con la
+ * esperada sin exigir una igualdad textual exacta.
+ */
+export function normalizeLocalityName(value: string): string {
+  const withoutAccents = normalizeForComparison(value);
+  const withoutPunctuation = withoutAccents
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return withoutPunctuation.replace(LOCALITY_PREFIXES, '').trim();
+}

@@ -1,50 +1,17 @@
 import type { DeliveryAddress } from '../../domain/DeliveryAddress.js';
 import { formatFullAddress, hasStructuredAddress } from '../../domain/formatDeliveryAddress.js';
-import type { GeocodeMatchedAddress, GeocodeResult, Geocoder } from '../../domain/Geocoder.js';
-import { normalizeForComparison, normalizeProvinceName } from '../../domain/normalizeAddress.js';
+import type { GeocodeResult, Geocoder } from '../../domain/Geocoder.js';
+import { type NominatimCandidate, selectBestCandidate } from './NominatimCandidateSelector.js';
 
 const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search';
 const REQUEST_TIMEOUT_MS = 10000;
 const CANDIDATE_LIMIT = 5;
 const USER_AGENT = 'RUTIA/1.0 (delivery route optimization)';
 
-interface NominatimAddressDetails {
-  road?: string;
-  city?: string;
-  town?: string;
-  village?: string;
-  municipality?: string;
-  suburb?: string;
-  city_district?: string;
-  county?: string;
-  state?: string;
-  postcode?: string;
-  country_code?: string;
-}
-
-interface NominatimCandidate {
-  lat: string;
-  lon: string;
-  display_name?: string;
-  address?: NominatimAddressDetails;
-}
-
-// Nominatim no siempre usa el mismo campo para "localidad" — depende de si es una ciudad
-// grande, un barrio porteño, un municipio del conurbano, etc. Probamos todos los candidatos
-// razonables en vez de asumir uno fijo.
-const LOCALITY_FIELDS: Array<keyof NominatimAddressDetails> = [
-  'city',
-  'town',
-  'village',
-  'municipality',
-  'suburb',
-  'city_district',
-  'county',
-];
-
 export class NominatimGeocoder implements Geocoder {
   async geocode(address: DeliveryAddress): Promise<GeocodeResult> {
     const url = buildSearchUrl(address);
+    console.log(`[Geocoder] dirección enviada a Nominatim: ${url.toString()}`);
 
     const response = await fetch(url, {
       headers: { 'User-Agent': USER_AGENT },
@@ -111,93 +78,4 @@ function buildSearchUrl(address: DeliveryAddress): URL {
   }
 
   return url;
-}
-
-function selectBestCandidate(candidates: NominatimCandidate[], address: DeliveryAddress): GeocodeResult {
-  const consistent = candidates.filter((candidate) => isConsistentCandidate(candidate, address));
-
-  if (consistent.length === 0) {
-    return { status: 'notFound' };
-  }
-
-  // Coincidir solo por provincia no alcanza para confirmar una dirección: sin localidad, un
-  // único candidato consistente puede seguir siendo el lugar equivocado dentro de la provincia
-  // (ver caso "Av. Rivadavia 1500, Buenos Aires" resolviendo en Junín). Sin `locality` para
-  // contrastar, nunca se devuelve `verified`, aunque quede un solo candidato tras los filtros.
-  if (consistent.length > 1 || !address.locality) {
-    return { status: 'ambiguous', candidates: consistent.length };
-  }
-
-  const [candidate] = consistent;
-
-  return {
-    status: 'verified',
-    coordinates: { latitude: Number(candidate.lat), longitude: Number(candidate.lon) },
-    matchedAddress: buildMatchedAddress(candidate),
-  };
-}
-
-function isConsistentCandidate(candidate: NominatimCandidate, address: DeliveryAddress): boolean {
-  const candidateAddress = candidate.address;
-
-  if (!candidateAddress || candidateAddress.country_code?.toLowerCase() !== 'ar') {
-    return false;
-  }
-
-  if (address.province) {
-    const expectedProvince = normalizeForComparison(normalizeProvinceName(address.province));
-    const candidateProvince = candidateAddress.state ? normalizeForComparison(normalizeProvinceName(candidateAddress.state)) : undefined;
-
-    if (candidateProvince !== expectedProvince) {
-      return false;
-    }
-  }
-
-  if (address.locality) {
-    const expectedLocality = normalizeForComparison(address.locality);
-    const matchesLocality = LOCALITY_FIELDS.some((field) => {
-      const value = candidateAddress[field];
-      if (typeof value !== 'string') {
-        return false;
-      }
-      // "Contiene" en vez de igualdad estricta: en los datos de Nominatim, muchas localidades
-      // argentinas aparecen con prefijos administrativos que nuestro campo no tiene (ej. "San
-      // Martín" (Mendoza) figura como "Distrito Ciudad de San Martín") — exigir igualdad exacta
-      // rechazaría coincidencias correctas. Sigue restringido a los campos de localidad, así que
-      // no se compara contra texto no relacionado (calles, barrios sueltos, etc.).
-      const candidateLocality = normalizeForComparison(value);
-      return candidateLocality.includes(expectedLocality) || expectedLocality.includes(candidateLocality);
-    });
-
-    if (!matchesLocality) {
-      return false;
-    }
-  }
-
-  if (address.street && !candidateAddress.road) {
-    // Pedimos una calle puntual, pero el resultado es un centroide (ciudad/provincia/CP) sin
-    // calle asociada — no es una dirección exacta, no lo aceptamos como si lo fuera.
-    return false;
-  }
-
-  return true;
-}
-
-function buildMatchedAddress(candidate: NominatimCandidate): GeocodeMatchedAddress | undefined {
-  const candidateAddress = candidate.address;
-
-  if (!candidateAddress) {
-    return undefined;
-  }
-
-  const locality = LOCALITY_FIELDS.map((field) => candidateAddress[field]).find(
-    (value): value is string => typeof value === 'string',
-  );
-
-  return {
-    locality,
-    province: candidateAddress.state,
-    postalCode: candidateAddress.postcode,
-    displayName: candidate.display_name,
-  };
 }

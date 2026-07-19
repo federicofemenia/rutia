@@ -4,7 +4,21 @@ body,
   margin: 0;
   padding: 0;
   width: 100%;
-  min-height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* iOS/Safari (incluida la PWA instalada en modo standalone) a veces no calcula 100dvh contra
+   la altura real de pantalla en el primer render, dejando un hueco abajo hasta que ocurre un
+   resize — -webkit-fill-available es el valor que WebKit sí resuelve bien desde el inicio.
+   @supports (-webkit-touch-callout: none) detecta específicamente Safari/iOS (nadie más lo soporta),
+   así que esto no afecta a Chrome/Android/escritorio. */
+@supports (-webkit-touch-callout: none) {
+  html,
+  body,
+  #root {
+    height: -webkit-fill-available;
+  }
 }
 
 * {

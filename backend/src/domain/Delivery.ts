@@ -10,8 +10,9 @@ export interface Delivery {
   createdAt: string;
   coordinates?: Coordinates;
   geocodingStatus: GeocodingStatus;
-  // Ciclo de vida de la entrega: OptimizeRoute no los usa (por eso opcionales acá), pero una
-  // RouteSession persistida siempre los trae — reflejan el estado que ya maneja el frontend.
+  // Ciclo de vida de la entrega: opcionales acá porque una entrega recién creada en el frontend
+  // (o un destino final construido ad-hoc) puede no tenerlos, pero una RouteSession persistida
+  // siempre los trae. OptimizeRoute usa `status` para no reordenar entregas ya resueltas.
   status?: DeliveryStatus;
   deliveredAt?: string;
   failureReasonCode?: FailureReasonCode;

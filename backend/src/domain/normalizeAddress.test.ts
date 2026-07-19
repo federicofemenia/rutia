@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { normalizePostalCode, normalizeProvinceName } from './normalizeAddress.js';
+import { normalizeLocalityName, normalizePostalCode, normalizeProvinceName } from './normalizeAddress.js';
 
 test('normalizeProvinceName reconoce abreviaturas y variantes comunes', () => {
   assert.equal(normalizeProvinceName('Bs As'), 'Buenos Aires');
@@ -31,4 +31,19 @@ test('normalizePostalCode limpia formato sin validar de forma estricta', () => {
   assert.equal(normalizePostalCode('M 5502 ABC'), 'M5502ABC');
   assert.equal(normalizePostalCode(''), undefined);
   assert.equal(normalizePostalCode('   '), undefined);
+});
+
+test('normalizeLocalityName quita prefijos administrativos comunes', () => {
+  assert.equal(normalizeLocalityName('Partido de Merlo'), 'merlo');
+  assert.equal(normalizeLocalityName('Municipio de San Isidro'), 'san isidro');
+  assert.equal(normalizeLocalityName('Departamento de Capital'), 'capital');
+  assert.equal(normalizeLocalityName('Provincia de Mendoza'), 'mendoza');
+});
+
+test('normalizeLocalityName ignora mayúsculas, tildes, puntuación y espacios duplicados', () => {
+  assert.equal(normalizeLocalityName('Merlo'), 'merlo');
+  assert.equal(normalizeLocalityName('MERLO'), 'merlo');
+  assert.equal(normalizeLocalityName('  Merlo  '), 'merlo');
+  assert.equal(normalizeLocalityName('San Martín'), 'san martin');
+  assert.equal(normalizeLocalityName('San, Martín.'), 'san martin');
 });

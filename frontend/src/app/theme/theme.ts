@@ -8,10 +8,10 @@ export const theme = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#2F6FED',
+      main: '#1E3A8A',
     },
     secondary: {
-      main: '#16C784',
+      main: '#22C55E',
     },
     background: {
       default: '#f5f6f8',
@@ -59,6 +59,15 @@ export const theme = createTheme({
     MuiListItemButton: {
       styleOverrides: {
         root: { borderRadius: 0 },
+      },
+    },
+    // Fuerza el texto de los inputs a 16px: por debajo de eso, Safari/Chrome en iOS hacen zoom
+    // automático al enfocar el campo (para que se pueda leer lo que se escribe), y ese zoom no
+    // siempre vuelve a su nivel normal al navegar a otra pantalla — se siente como si la app
+    // "saltara" de tamaño todo el tiempo. Solo afecta el texto tipeado, no las labels ni el resto.
+    MuiInputBase: {
+      styleOverrides: {
+        input: { fontSize: '1rem' },
       },
     },
   },

@@ -12,7 +12,7 @@ const EXTRACTION_PROMPT =
   '"Calle" al principio (ej. si la etiqueta dice "Calle San Martín", street debe ser "San ' +
   'Martín", no "Calle San Martín" — "Calle" es solo un rótulo, no forma parte del nombre real ' +
   'en Argentina). Sí conservá otros tipos de vía cuando son parte real del nombre, como ' +
-  '"Avenida"/"Av.", "Bulevar", "Ruta", "Pasaje" o "Diagonal". ' +
+  '"Avenida"/"Av.", "Bulevar", "Ruta", "Pasaje" o "Diagonal". si encontras Gral., devolve General ' +
   '- streetNumber: el número de puerta/altura, si la etiqueta lo muestra; si no aparece, null. ' +
   '- postalCode: el código postal — el numérico tradicional de 4 dígitos, o el CPA alfanumérico ' +
   'argentino (ej. "M5502ABC"), que es más específico y se prefiere si aparecen los dos; si no ' +
