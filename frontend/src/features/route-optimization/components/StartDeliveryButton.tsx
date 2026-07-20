@@ -20,7 +20,7 @@ export function StartDeliveryButton(buttonProps: StartDeliveryButtonProps) {
   return (
     <>
       <Button {...buttonProps} onClick={() => setIsDialogOpen(true)}>
-        Comenzar reparto
+        {'Optimizar ruta'}
       </Button>
 
       <OptimizeRouteDialog

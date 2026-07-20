@@ -14,6 +14,8 @@ import { SqliteUserRepository } from '../infrastructure/repositories/SqliteUserR
 const DEV_ACCOUNTS = [
   { name: 'chofer', password: 'chofer123', role: UserRole.Chofer },
   { name: 'admin', password: 'admin123', role: UserRole.Admin },
+  { name: 'anabelen', password: 'chofer123', role: UserRole.Chofer },
+  { name: 'federico', password: 'chofer123', role: UserRole.Chofer },
 ];
 
 async function main() {

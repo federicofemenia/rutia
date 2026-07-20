@@ -1,7 +1,8 @@
 import NavigationIcon from '@mui/icons-material/Navigation';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import { IconButton, ListItemButton, ListItemText, Stack, Tooltip } from '@mui/material';
-import { alpha } from '@mui/material/styles';
+import { Button, Card, CardActionArea, Stack, Tooltip, Typography } from '@mui/material';
+import { IconBadge } from '../../../shared/components';
+import { DELIVERY_STATUS_CONFIG } from '../config/deliveryStatusConfig';
 import { DeliveryStatus, GeocodingStatus, type Delivery } from '../types';
 import { formatLocalityLine, formatStreetLine } from '../utils/formatDeliveryAddress';
 import { DeliveryStatusChip } from './DeliveryStatusChip';
@@ -17,54 +18,68 @@ const GEOCODING_REVIEW_MESSAGES: Partial<Record<GeocodingStatus, string>> = {
   [GeocodingStatus.NotFound]: 'No se encontró la dirección en el mapa. Revisá los datos.',
 };
 
+const STATUS_ICON_BADGE_COLOR: Record<DeliveryStatus, 'warning' | 'info' | 'success' | 'error'> = {
+  [DeliveryStatus.Pending]: 'warning',
+  [DeliveryStatus.InProgress]: 'info',
+  [DeliveryStatus.Delivered]: 'success',
+  [DeliveryStatus.Failed]: 'error',
+};
+
+function formatDeliveredTime(deliveredAt?: string): string | null {
+  if (!deliveredAt) {
+    return null;
+  }
+  return new Date(deliveredAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+}
+
 export function DeliveryListItem({ delivery, onOpen, onNavigate }: DeliveryListItemProps) {
   const isInProgress = delivery.status === DeliveryStatus.InProgress;
   const reviewMessage = GEOCODING_REVIEW_MESSAGES[delivery.geocodingStatus];
+  const StatusIcon = DELIVERY_STATUS_CONFIG[delivery.status].icon;
+  const deliveredTime = formatDeliveredTime(delivery.deliveredAt);
 
   return (
-    <ListItemButton
-      divider
-      onClick={() => onOpen(delivery)}
-      sx={(theme) => ({
-        gap: 1,
-        py: 1,
-        ...(isInProgress && {
-          bgcolor: alpha(theme.palette.info.main, 0.08),
-          borderLeft: `3px solid ${theme.palette.info.main}`,
-        }),
-      })}
-    >
-      <ListItemText
-        primary={formatStreetLine(delivery.address) || '(sin dirección)'}
-        secondary={formatLocalityLine(delivery.address) || undefined}
-        slotProps={{
-          primary: { variant: 'body2', noWrap: true, sx: { fontWeight: 600 } },
-          secondary: { variant: 'caption' },
-        }}
-        sx={{ m: 0 }}
-      />
-      <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-        {reviewMessage && (
-          <Tooltip title={reviewMessage}>
-            <WarningAmberIcon fontSize="small" color="warning" />
-          </Tooltip>
-        )}
-        {isInProgress && (
-          <Tooltip title="Navegar">
-            <IconButton
-              size="small"
-              color="info"
-              onClick={(event) => {
-                event.stopPropagation();
-                onNavigate(delivery);
-              }}
-            >
-              <NavigationIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        )}
-        <DeliveryStatusChip status={delivery.status} />
-      </Stack>
-    </ListItemButton>
+    <Card>
+      <CardActionArea onClick={() => onOpen(delivery)} sx={{ p: 1.5 }}>
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+          <IconBadge icon={<StatusIcon fontSize="small" />} color={STATUS_ICON_BADGE_COLOR[delivery.status]} />
+
+          <Stack sx={{ flexGrow: 1, minWidth: 0 }}>
+            <Typography variant="body2" noWrap sx={{ fontWeight: 700 }}>
+              {formatStreetLine(delivery.address) || '(sin dirección)'}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" noWrap>
+              {formatLocalityLine(delivery.address) || undefined}
+            </Typography>
+          </Stack>
+
+          <Stack spacing={0.5} sx={{ alignItems: 'flex-end' }}>
+            {reviewMessage && (
+              <Tooltip title={reviewMessage}>
+                <WarningAmberIcon fontSize="small" color="warning" />
+              </Tooltip>
+            )}
+            <DeliveryStatusChip status={delivery.status} />
+            {deliveredTime && (
+              <Typography variant="caption" color="text.secondary">
+                {deliveredTime}
+              </Typography>
+            )}
+          </Stack>
+        </Stack>
+      </CardActionArea>
+
+      {isInProgress && (
+        <Button
+          fullWidth
+          color="primary"
+          startIcon={<NavigationIcon fontSize="small" />}
+          onClick={() => onNavigate(delivery)}
+          sx={{ borderRadius: 0, py: 1 }}
+        >
+          Navegar
+        </Button>
+      )}
+    </Card>
   );
 }

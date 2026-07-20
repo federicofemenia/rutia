@@ -1,4 +1,4 @@
-import { Alert, Button, List } from '@mui/material';
+import { Alert, Button, Stack, Typography } from '@mui/material';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../app/router/routes';
@@ -13,7 +13,7 @@ import {
   type Delivery,
   useRoute,
 } from '../../features/route';
-import { AppLayout } from '../../shared/components';
+import { AppLayout, GradientHero } from '../../shared/components';
 
 export function RouteSummaryPage() {
   const navigate = useNavigate();
@@ -26,9 +26,24 @@ export function RouteSummaryPage() {
     : null;
 
   const pendingCount = session.deliveries.filter((delivery) => delivery.geocodingStatus === GeocodingStatus.Pending).length;
+  const visibleDeliveries = getVisibleDeliveries(session.deliveries);
 
   return (
-    <AppLayout title="Ruta">
+    <AppLayout
+      title="Entregas"
+      header={
+        <GradientHero>
+          <Typography component="h1" variant="h5" sx={{ fontWeight: 800 }}>
+            Entregas
+          </Typography>
+          <Typography variant="body2" sx={{ opacity: 0.8 }}>
+            {visibleDeliveries.length === 1
+              ? '1 envío asignado para hoy'
+              : `${visibleDeliveries.length} envíos asignados para hoy`}
+          </Typography>
+        </GradientHero>
+      }
+    >
       <RouteSummaryStats deliveries={session.deliveries} />
 
       {pendingCount > 0 && (
@@ -46,8 +61,8 @@ export function RouteSummaryPage() {
         </Alert>
       )}
 
-      <List disablePadding>
-        {getVisibleDeliveries(session.deliveries).map((delivery) => (
+      <Stack spacing={1.5}>
+        {visibleDeliveries.map((delivery) => (
           <DeliveryListItem
             key={delivery.id}
             delivery={delivery}
@@ -55,7 +70,7 @@ export function RouteSummaryPage() {
             onNavigate={setNavigationTarget}
           />
         ))}
-      </List>
+      </Stack>
 
       <DeliveryActionsSheet
         delivery={selectedDelivery}
