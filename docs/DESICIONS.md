@@ -70,3 +70,32 @@ Esto depende de que Gemini extraiga la localidad correctamente cada vez — no h
 **Actualización 2026-07-16 — rediseño del modelo de direcciones (`DeliveryAddress` estructurado) y confirmación con etiqueta real:** se reemplazó `Delivery.address: string` por un `DeliveryAddress` estructurado (`street`, `streetNumber`, `postalCode`, `locality`, `province`, `country`, `rawAddress`) tanto en frontend como en backend, con `Delivery.geocodingStatus` (`pending`/`verified`/`ambiguous`/`notFound`) como resultado explícito del proceso de geocodificación. El prompt de Gemini se actualizó para devolver estos campos por separado en vez de un texto concatenado, y `NominatimGeocoder` pasó a usar búsqueda **estructurada** (`street`/`city`/`state`/`postalcode`/`country`, con `countrycodes=ar` y `addressdetails=1`) con validación de candidatos contra la provincia/localidad esperadas — ya no se toma el primer resultado de Nominatim sin verificar. Sin `locality`, nunca se devuelve `verified` (una coincidencia solo por provincia no alcanza para confirmar una dirección — caso real detectado: "Av. Rivadavia 1500, Buenos Aires" sin localidad resolvía en Junín). `OptimizeRoute` separa entregas verificadas de ambiguas/no encontradas en vez de bloquear todo el recorrido por una sola dirección problemática.
 
 Se probó con una etiqueta real de un envío ("Calle Alvar Núñez Cabeza de Vaca 1351, CP 1744, MORENO" — sin la palabra "Buenos Aires" en ningún lado de la etiqueta) escaneada a través de la app: Gemini leyó bien la dirección e infirió correctamente la provincia ("Buenos Aires") a partir de la localidad/CP, tal como se esperaba. Con esto queda confirmado el pendiente que había quedado abierto en la actualización anterior — el ajuste de inferencia de localidad/provincia por CP funciona con fotos reales, no solo en las pruebas manuales de texto.
+
+## 2026-07-21 — Migración de `node:sqlite` a `@libsql/client`, preparando Turso para development/production
+
+**Contexto**
+
+La persistencia usaba `node:sqlite` (`DatabaseSync`), built-in de Node, elegido originalmente por cero dependencias. Para poder desplegar con una base remota (Turso: `rutia-development` en la rama `development`, `rutia-production` en `main`) hace falta un cliente que hable con SQLite tanto local como remoto detrás de la misma interfaz — `node:sqlite` no tiene modo remoto.
+
+**Decisión**
+
+Se reemplazó `DatabaseSync` por `@libsql/client` (build de Node, nunca `@libsql/client/web`) en los dos repositorios (`SqliteUserRepository`, `SqliteRouteSessionRepository`) y en `createDatabase`. La configuración de conexión quedó como unión discriminada (`{provider:'sqlite', path}` | `{provider:'turso', url, authToken}`), validada estrictamente al arrancar vía `env.ts` — `DATABASE_PROVIDER` es obligatorio y sin default implícito, sin non-null assertions. Se separó `createDatabaseClient` (crea el `Client`) de `runMigrations` (aplica migraciones) y de la definición de migraciones (`migrations/migrations.ts`), en vez de dejarlo todo mezclado en `createDatabase` como antes.
+
+Se agregó una tabla `schema_migrations` y un runner de migraciones versionadas (forward-only, sin rollback en esta etapa): cada migración es una lista de sentencias (no un string con `;`), y corre en un único `client.batch(...)` junto con su INSERT en `schema_migrations` — si cualquier sentencia falla, se revierte todo el batch y no queda registrada. La migración `0001_init` reproduce el esquema que ya existía (no cambia ninguna tabla).
+
+No se tocaron los puertos de dominio (`UserRepository`, `RouteSessionRepository`) ni los casos de uso — ya declaraban todos sus métodos como `Promise`, así que el cambio de un driver síncrono a uno asíncrono no les pidió ningún ajuste. Sí se propagó `async` a `createApp()`/`server.ts` (antes `createApp()` era síncrono) y se agregó cierre controlado del cliente ante `SIGINT`/`SIGTERM`, junto con el servidor HTTP.
+
+**Incompatibilidad real encontrada**
+
+`node:sqlite` no hacía cumplir `PRAGMA foreign_keys` por defecto (la `FOREIGN KEY (user_id) REFERENCES users(id)` de `route_sessions` estaba declarada pero nunca se hacía valer). El cliente local de libSQL sí la exige por defecto. En uso real no debería afectar nada — `route_sessions` solo se guarda para un usuario ya autenticado, que por lo tanto ya existe en `users` — pero quedó como comportamiento distinto a documentar; los tests de repositorio ahora insertan un usuario real antes de guardar su sesión.
+
+**Verificación antes de tocar el archivo real**
+
+Se copió `backend/data/rutia.sqlite` (nunca se abrió el original con el código nuevo) y se corrió `createDatabase` sobre la copia. Se comparó el volcado de `users`/`route_sessions` antes/después con `sqlite3` CLI (independiente del código propio): sin diferencias. El checksum SHA-256 del archivo original se verificó idéntico al final del proceso.
+
+**Riesgos pendientes**
+
+- No hay rollback de migraciones — una migración mal escrita que ya se aplicó (`IF NOT EXISTS` no ayuda si el problema es de datos, no de esquema) requiere una migración nueva que corrija, no revertir la vieja.
+- Turso en sí (crear las bases `rutia-development`/`rutia-production`, configurar las variables en cada ambiente desplegado) queda fuera de esta tarea a propósito — esto solo prepara el código para poder apuntarle.
+
+**Estado:** implementado y verificado localmente (tests, build, arranque manual con SQLite local, seed). Pendiente de probar contra una base Turso real antes de desplegar.

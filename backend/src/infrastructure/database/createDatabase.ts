@@ -1,40 +1,16 @@
-import { mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import type { Client } from '@libsql/client';
+import type { DatabaseConfig } from './DatabaseConfig.js';
+import { createDatabaseClient } from './createDatabaseClient.js';
+import { migrations } from './migrations/migrations.js';
+import { runMigrations } from './runMigrations.js';
 
 /**
- * SQLite vía el módulo nativo `node:sqlite` — sin dependencias nuevas. Elegido para el MVP por
- * simplicidad (un solo archivo, sin infraestructura que levantar); se revisa antes de producción,
- * mismo criterio que ya se usó para Nominatim/OSRM.
+ * Punto único de entrada: crea el cliente (SQLite local/memoria o Turso, según `config`) y deja
+ * la base al día antes de devolverlo — nunca hay que acordarse de correr migraciones aparte en
+ * cada lugar que abre una conexión.
  */
-export function createDatabase(filePath: string): DatabaseSync {
-  if (filePath !== ':memory:') {
-    mkdirSync(dirname(filePath), { recursive: true });
-  }
-
-  const db = new DatabaseSync(filePath);
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL UNIQUE,
-      role TEXT NOT NULL,
-      password_hash TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    )
-  `);
-
-  // Una fila por chofer: la última RouteSession que sincronizó, guardada tal cual como JSON.
-  // No se modela cada entrega en columnas propias — el backend no necesita razonar sobre su
-  // contenido, solo guardarlo y devolverlo (el frontend, dueño de ese modelo, ya sabe leerlo).
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS route_sessions (
-      user_id TEXT PRIMARY KEY,
-      session_json TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      FOREIGN KEY (user_id) REFERENCES users(id)
-    )
-  `);
-
-  return db;
+export async function createDatabase(config: DatabaseConfig): Promise<Client> {
+  const client = createDatabaseClient(config);
+  await runMigrations(client, migrations);
+  return client;
 }
