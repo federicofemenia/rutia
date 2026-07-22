@@ -18,8 +18,9 @@ export interface OptimizeRouteResult {
   stats: OptimizeRouteStats;
 }
 
+const API_URL = import.meta.env.VITE_API_URL ?? '';
 export async function optimizeRoute({ deliveries, start, end }: OptimizeRouteParams): Promise<OptimizeRouteResult> {
-  const response = await authFetch('/api/routes/optimize', {
+  const response = await authFetch(`${API_URL}/api/routes/optimize`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
