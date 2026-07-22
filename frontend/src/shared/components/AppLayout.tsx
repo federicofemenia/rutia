@@ -26,7 +26,18 @@ export function AppLayout({ title, headerActions, bottomNavItems, header, childr
       <Stack
         component="main"
         spacing={2}
-        sx={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', px: 2, py: 2 }}
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          px: 2,
+          py: 2,
+          // Safari/iOS puede encoger los hijos de un flex container con scroll por debajo del
+          // alto que necesita su propio contenido, recortándolo en vez de dejar que este
+          // contenedor scrollee. flexShrink: 0 fuerza a cada hijo a mantener su alto natural.
+          '& > *': { flexShrink: 0 },
+        }}
       >
         {children}
       </Stack>
