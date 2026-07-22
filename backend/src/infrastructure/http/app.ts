@@ -22,6 +22,7 @@ import { createLoginController } from './loginController.js';
 import { createOptimizeRouteController } from './optimizeRouteController.js';
 import { requireAdminMiddleware } from './requireAdminMiddleware.js';
 import { createSaveRouteSessionController } from './saveRouteSessionController.js';
+import cors from 'cors';
 
 export interface CreatedApp {
   app: express.Express;
@@ -48,6 +49,23 @@ export async function createApp(): Promise<CreatedApp> {
   const requireAuth = createAuthMiddleware(tokenService);
 
   const app = express();
+  app.use(
+  cors({
+    origin(origin, callback) {
+      if (
+        !origin ||
+        origin === 'http://localhost:5173' ||
+        origin.endsWith('.vercel.app')
+      ) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error(`Origin no permitido: ${origin}`));
+    },
+    credentials: true,
+  }),
+);
   app.use(express.json({ limit: '10mb' }));
 
   app.post('/api/auth/login', createLoginController(authenticateUser));
