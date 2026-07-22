@@ -1,3 +1,4 @@
+import type { Client } from '@libsql/client';
 import express from 'express';
 import { AuthenticateUser } from '../../application/AuthenticateUser.js';
 import { ExtractAddressFromImage } from '../../application/ExtractAddressFromImage.js';
@@ -22,8 +23,13 @@ import { createOptimizeRouteController } from './optimizeRouteController.js';
 import { requireAdminMiddleware } from './requireAdminMiddleware.js';
 import { createSaveRouteSessionController } from './saveRouteSessionController.js';
 
-export function createApp() {
-  const database = createDatabase(env.databasePath);
+export interface CreatedApp {
+  app: express.Express;
+  database: Client;
+}
+
+export async function createApp(): Promise<CreatedApp> {
+  const database = await createDatabase(env.database);
   const userRepository = new SqliteUserRepository(database);
   const routeSessionRepository = new SqliteRouteSessionRepository(database);
   const tokenService = new JwtTokenService(env.jwtSecret);
@@ -56,5 +62,5 @@ export function createApp() {
     createGetDriverRouteSessionController(getDriverRouteSession),
   );
 
-  return app;
+  return { app, database };
 }

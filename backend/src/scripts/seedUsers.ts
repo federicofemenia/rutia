@@ -19,7 +19,7 @@ const DEV_ACCOUNTS = [
 ];
 
 async function main() {
-  const database = createDatabase(env.databasePath);
+  const database = await createDatabase(env.database);
   const userRepository = new SqliteUserRepository(database);
 
   for (const account of DEV_ACCOUNTS) {
