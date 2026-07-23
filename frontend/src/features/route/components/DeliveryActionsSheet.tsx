@@ -1,14 +1,17 @@
 import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import EditIcon from '@mui/icons-material/Edit';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
 import NavigationIcon from '@mui/icons-material/Navigation';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import { Divider, List, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
-import { useState } from 'react';
+import { Alert, CircularProgress, Divider, List, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
+import { useEffect, useState } from 'react';
 import { BottomSheet } from '../../../shared/components';
 import { FAILURE_REASON_LABELS } from '../config/failureReasonConfig';
+import { GEOCODING_REVIEW_MESSAGES } from '../config/geocodingReviewMessages';
+import { useRetryGeocoding } from '../hooks/useRetryGeocoding';
 import { useRoute } from '../hooks/useRoute';
-import { DeliveryStatus, type Delivery, type DeliveryAddress, type FailureReasonCode } from '../types';
+import { DeliveryStatus, GeocodingStatus, type Delivery, type DeliveryAddress, type FailureReasonCode } from '../types';
 import { formatLastModified } from '../utils/formatLastModified';
 import { formatLocalityLine, formatStreetLine } from '../utils/formatDeliveryAddress';
 import { EditDeliveryAddressDialog } from './EditDeliveryAddressDialog';
@@ -21,9 +24,17 @@ interface DeliveryActionsSheetProps {
 }
 
 export function DeliveryActionsSheet({ delivery, onClose, onNavigate }: DeliveryActionsSheetProps) {
-  const { startDelivery, completeDelivery, failDelivery, editDeliveryAddress } = useRoute();
+  const { startDelivery, completeDelivery, failDelivery, editDeliveryAddress, updateDeliveryGeocoding } = useRoute();
   const [failingDeliveryId, setFailingDeliveryId] = useState<string | null>(null);
   const [editingDelivery, setEditingDelivery] = useState<Delivery | null>(null);
+  const { status: retryStatus, retry: retryGeocoding } = useRetryGeocoding();
+  const [staleGeocodingStatus, setStaleGeocodingStatus] = useState<GeocodingStatus | null>(null);
+  const [retryFailureMessage, setRetryFailureMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    setStaleGeocodingStatus(null);
+    setRetryFailureMessage(null);
+  }, [delivery?.id]);
 
   const handleFailConfirm = (failureReasonCode: FailureReasonCode, failureReasonDetail?: string) => {
     if (failingDeliveryId) {
@@ -37,6 +48,31 @@ export function DeliveryActionsSheet({ delivery, onClose, onNavigate }: Delivery
       editDeliveryAddress(editingDelivery.id, address);
     }
     setEditingDelivery(null);
+  };
+
+  const handleRetryGeocoding = async () => {
+    if (!delivery) {
+      return;
+    }
+
+    setStaleGeocodingStatus(null);
+    setRetryFailureMessage(null);
+    const resolution = await retryGeocoding(delivery.address);
+
+    if (!resolution) {
+      setRetryFailureMessage('No se pudo obtener la ubicación. Probá de nuevo en un momento.');
+      return;
+    }
+
+    updateDeliveryGeocoding(delivery.id, resolution.coordinates, resolution.geocodingStatus);
+
+    if (resolution.geocodingStatus === GeocodingStatus.Verified) {
+      onClose();
+    } else {
+      // Sigue sin resolverse (mismo motivo u otro) — se avisa acá en vez de cerrar la hoja como
+      // si nada hubiera pasado, para que el chofer sepa que el reintento no alcanzó.
+      setStaleGeocodingStatus(resolution.geocodingStatus);
+    }
   };
 
   return (
@@ -68,6 +104,18 @@ export function DeliveryActionsSheet({ delivery, onClose, onNavigate }: Delivery
               </Typography>
             )}
 
+            {staleGeocodingStatus && (
+              <Alert severity="warning" sx={{ mb: 1 }}>
+                {GEOCODING_REVIEW_MESSAGES[staleGeocodingStatus] ?? 'Seguimos sin poder ubicar esta dirección.'}
+              </Alert>
+            )}
+
+            {retryFailureMessage && (
+              <Alert severity="error" sx={{ mb: 1 }}>
+                {retryFailureMessage}
+              </Alert>
+            )}
+
             <List disablePadding>
               <ListItemButton
                 disableGutters
@@ -81,6 +129,15 @@ export function DeliveryActionsSheet({ delivery, onClose, onNavigate }: Delivery
                 </ListItemIcon>
                 <ListItemText primary="Editar dirección" />
               </ListItemButton>
+
+              {delivery.geocodingStatus !== GeocodingStatus.Verified && (
+                <ListItemButton disableGutters disabled={retryStatus === 'loading'} onClick={handleRetryGeocoding}>
+                  <ListItemIcon sx={{ minWidth: 36 }}>
+                    {retryStatus === 'loading' ? <CircularProgress size={20} /> : <LocationOnIcon />}
+                  </ListItemIcon>
+                  <ListItemText primary="Ubicar nuevamente" />
+                </ListItemButton>
+              )}
 
               {delivery.status === DeliveryStatus.Pending && (
                 <ListItemButton

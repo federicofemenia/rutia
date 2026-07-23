@@ -118,6 +118,27 @@ test('un error temporal del geocoder deja la entrega en Pending y se cuenta en s
   assert.equal(optimizer.calls.length, 0);
 });
 
+test('no vuelve a geocodificar entregas NotFound o Ambiguous: solo Pending dispara una consulta nueva', async () => {
+  const notFound = makeDelivery({ id: 'nf', coordinates: undefined, geocodingStatus: GeocodingStatus.NotFound });
+  const ambiguous = makeDelivery({ id: 'amb', coordinates: { latitude: 3, longitude: 3 }, geocodingStatus: GeocodingStatus.Ambiguous });
+  const verified = makeDelivery({ id: 'v1', coordinates: { latitude: 1, longitude: 1 } });
+
+  const optimizer = new RecordingRouteOptimizer();
+  // ThrowingGeocoder revienta si algo lo llama — confirma que ni NotFound ni Ambiguous disparan
+  // una nueva consulta, solo el estado Pending lo haría.
+  const useCase = new OptimizeRoute(new ThrowingGeocoder(), optimizer);
+
+  const result = await useCase.execute({
+    deliveries: [notFound, ambiguous, verified],
+    start: { latitude: 0, longitude: 0 },
+    end: { latitude: 0, longitude: 0 },
+  });
+
+  assert.deepEqual(result.stats, { verified: 1, ambiguous: 1, notFound: 1, error: 0 });
+  assert.equal(result.deliveries.find((delivery) => delivery.id === 'nf')?.geocodingStatus, GeocodingStatus.NotFound);
+  assert.equal(result.deliveries.find((delivery) => delivery.id === 'amb')?.geocodingStatus, GeocodingStatus.Ambiguous);
+});
+
 test('sin entregas pendientes, devuelve las finalizadas sin llamar al optimizador', async () => {
   const delivered = makeDelivery({ id: 'delivered', status: DeliveryStatus.Delivered, coordinates: { latitude: 10, longitude: 10 } });
 

@@ -5,6 +5,7 @@ import { DeliveryStatus } from '../domain/DeliveryStatus.js';
 import type { Geocoder } from '../domain/Geocoder.js';
 import { GeocodingStatus } from '../domain/GeocodingStatus.js';
 import type { RouteOptimizer } from '../domain/RouteOptimizer.js';
+import { resolveGeocoding } from './resolveGeocoding.js';
 
 const GEOCODING_DELAY_MS = 1100;
 
@@ -60,39 +61,25 @@ export class OptimizeRoute {
         await sleep(GEOCODING_DELAY_MS);
       }
       calledGeocoderPreviously = true;
-      return this.geocoder.geocode(address);
+      return resolveGeocoding(this.geocoder, address);
     };
 
     const resolvedDeliveries: Delivery[] = [];
 
     for (const delivery of routableDeliveries) {
-      // Ya verificada (y, por ahora, la dirección nunca cambia después de confirmada — no hay
-      // edición post-confirmación todavía) — se reutiliza sin volver a geocodificar.
-      if (delivery.geocodingStatus === GeocodingStatus.Verified && delivery.coordinates) {
+      // Solo `Pending` dispara una (re)geocodificación automática acá: es el único estado sin un
+      // resultado "definitivo" del proveedor. `Verified`/`Ambiguous`/`NotFound` ya consultaron a
+      // Nominatim antes y, para la misma dirección, van a dar el mismo resultado — reintentarlos
+      // en cada optimización solo gasta presupuesto de rate limit en direcciones que ya conocemos.
+      // Para volver a intentar una de esas, el chofer edita la dirección (resetea a Pending, ver
+      // `UPDATE_DELIVERY_ADDRESS` en el frontend) o usa el reintento manual de esa entrega puntual.
+      if (delivery.geocodingStatus !== GeocodingStatus.Pending) {
         resolvedDeliveries.push(delivery);
         continue;
       }
 
-      try {
-        const result = await geocode(delivery.address);
-
-        if (result.status === 'verified') {
-          resolvedDeliveries.push({ ...delivery, coordinates: result.coordinates, geocodingStatus: GeocodingStatus.Verified });
-        } else if (result.status === 'ambiguous') {
-          // Conserva las coordenadas aunque queden marcadas para revisión: siguen sin usarse
-          // para ordenar la ruta (solo entra al optimizador lo `Verified`), pero le dan al
-          // chofer un punto navegable en vez de nada mientras decide si confiar en él.
-          resolvedDeliveries.push({ ...delivery, coordinates: result.coordinates, geocodingStatus: GeocodingStatus.Ambiguous });
-        } else {
-          resolvedDeliveries.push({ ...delivery, coordinates: undefined, geocodingStatus: GeocodingStatus.NotFound });
-        }
-      } catch (error) {
-        // Error temporal del proveedor (red, rate limit, respuesta inválida): no es lo mismo que
-        // "no encontrado". La entrega queda pending para reintentar en la próxima optimización
-        // en vez de marcarse como irresoluble; no había coordinates verificadas que perder.
-        console.error(`Error temporal al geocodificar la entrega ${delivery.id}`, error);
-        resolvedDeliveries.push({ ...delivery, coordinates: undefined, geocodingStatus: GeocodingStatus.Pending });
-      }
+      const resolution = await geocode(delivery.address);
+      resolvedDeliveries.push({ ...delivery, ...resolution });
     }
 
     const verifiedDeliveries = resolvedDeliveries.filter(

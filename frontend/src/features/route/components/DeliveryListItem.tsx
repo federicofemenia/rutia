@@ -3,7 +3,8 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { Button, Card, CardActionArea, Stack, Tooltip, Typography } from '@mui/material';
 import { IconBadge } from '../../../shared/components';
 import { DELIVERY_STATUS_CONFIG } from '../config/deliveryStatusConfig';
-import { DeliveryStatus, GeocodingStatus, type Delivery } from '../types';
+import { GEOCODING_REVIEW_MESSAGES } from '../config/geocodingReviewMessages';
+import { DeliveryStatus, type Delivery } from '../types';
 import { formatLocalityLine, formatStreetLine } from '../utils/formatDeliveryAddress';
 import { DeliveryStatusChip } from './DeliveryStatusChip';
 
@@ -12,11 +13,6 @@ interface DeliveryListItemProps {
   onOpen: (delivery: Delivery) => void;
   onNavigate: (delivery: Delivery) => void;
 }
-
-const GEOCODING_REVIEW_MESSAGES: Partial<Record<GeocodingStatus, string>> = {
-  [GeocodingStatus.Ambiguous]: 'Dirección ambigua: hay varias coincidencias posibles. Revisá localidad y provincia.',
-  [GeocodingStatus.NotFound]: 'No se encontró la dirección en el mapa. Revisá los datos.',
-};
 
 const STATUS_ICON_BADGE_COLOR: Record<DeliveryStatus, 'warning' | 'info' | 'success' | 'error'> = {
   [DeliveryStatus.Pending]: 'warning',

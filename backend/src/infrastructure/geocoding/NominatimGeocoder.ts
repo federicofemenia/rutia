@@ -6,22 +6,101 @@ import { type NominatimCandidate, selectBestCandidate } from './NominatimCandida
 const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search';
 const REQUEST_TIMEOUT_MS = 10000;
 const CANDIDATE_LIMIT = 5;
-const USER_AGENT = 'RUTIA/1.0 (delivery route optimization)';
+
+// La política de uso de Nominatim (operations.osmfoundation.org/policies/nominatim) pide un
+// contacto real en el User-Agent (o en el parámetro `email`) para poder avisar antes de
+// bloquear, en vez de bloquear directo — por eso va acá, no solo un nombre de app.
+const CONTACT_EMAIL = 'femenia.f@gmail.com';
+const USER_AGENT = `RUTIA/1.0 (delivery route optimization; ${CONTACT_EMAIL})`;
+
+// Nominatim es un servicio público compartido: un 429 (rate limit) o un error de red puntual son
+// esperables bajo uso normal, no excepcionales. Un solo reintento con backoff simple alcanza para
+// un MVP — nada de reintentos infinitos ni backoff exponencial. Si el segundo intento también
+// falla, se deja subir el error: quien geocodifica (OptimizeRoute, o el reintento manual de una
+// entrega) ya sabe tratarlo como temporal, no hace falta resolverlo acá.
+const DEFAULT_BACKOFF_MS = 1500;
+const MAX_RETRY_AFTER_MS = 5000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// `Retry-After` puede venir como segundos (ej. "2") o como fecha HTTP — Nominatim documenta el
+// primer formato, pero el header es estándar y podría llegar en cualquiera de los dos.
+function parseRetryAfterMs(header: string | null): number | null {
+  if (!header) {
+    return null;
+  }
+
+  const seconds = Number(header);
+  if (Number.isFinite(seconds)) {
+    return Math.max(0, seconds * 1000);
+  }
+
+  const dateMs = Date.parse(header);
+  return Number.isNaN(dateMs) ? null : Math.max(0, dateMs - Date.now());
+}
+
+interface FetchAttempt {
+  response?: Response;
+  error?: unknown;
+  retryAfterMs: number | null;
+}
+
+async function attemptFetch(url: URL, attempt: 1 | 2): Promise<FetchAttempt> {
+  const startedAt = Date.now();
+
+  try {
+    const response = await fetch(url, {
+      headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    const elapsedMs = Date.now() - startedAt;
+    const retryAfterHeader = response.headers.get('Retry-After');
+    const retryAfterMs = parseRetryAfterMs(retryAfterHeader);
+    const retrySuffix = retryAfterHeader ? ` (Retry-After: ${retryAfterHeader})` : '';
+
+    if (response.ok) {
+      console.log(`[Geocoder] intento ${attempt}: ${response.status} en ${elapsedMs}ms`);
+    } else {
+      console.error(`[Geocoder] intento ${attempt}: ${response.status} en ${elapsedMs}ms${retrySuffix}`);
+    }
+
+    return { response, retryAfterMs };
+  } catch (error) {
+    const elapsedMs = Date.now() - startedAt;
+    const reason = error instanceof Error ? error.message : String(error);
+    console.error(`[Geocoder] intento ${attempt}: error de red en ${elapsedMs}ms — ${reason}`);
+    return { error, retryAfterMs: null };
+  }
+}
+
+async function fetchWithSingleRetry(url: URL): Promise<Response> {
+  const first = await attemptFetch(url, 1);
+  if (first.response?.ok) {
+    return first.response;
+  }
+
+  const waitMs = first.retryAfterMs !== null ? Math.min(first.retryAfterMs, MAX_RETRY_AFTER_MS) : DEFAULT_BACKOFF_MS;
+  await sleep(waitMs);
+
+  const second = await attemptFetch(url, 2);
+  if (second.response?.ok) {
+    return second.response;
+  }
+
+  if (second.response) {
+    throw new Error(`Nominatim respondió ${second.response.status} al geocodificar la dirección.`);
+  }
+  throw second.error instanceof Error ? second.error : new Error('No se pudo conectar con Nominatim.');
+}
 
 export class NominatimGeocoder implements Geocoder {
   async geocode(address: DeliveryAddress): Promise<GeocodeResult> {
     const url = buildSearchUrl(address);
     console.log(`[Geocoder] dirección enviada a Nominatim: ${url.toString()}`);
 
-    const response = await fetch(url, {
-      headers: { 'User-Agent': USER_AGENT },
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Nominatim respondió ${response.status} al geocodificar la dirección.`);
-    }
-
+    const response = await fetchWithSingleRetry(url);
     const candidates = (await response.json()) as unknown;
 
     if (!Array.isArray(candidates)) {
@@ -57,6 +136,7 @@ function buildSearchUrl(address: DeliveryAddress): URL {
   url.searchParams.set('addressdetails', '1');
   url.searchParams.set('limit', String(CANDIDATE_LIMIT));
   url.searchParams.set('countrycodes', 'ar');
+  url.searchParams.set('email', CONTACT_EMAIL);
 
   if (hasStructuredAddress(address)) {
     const street = [cleanStreetForStructuredQuery(address.street), address.streetNumber].filter(Boolean).join(' ').trim();

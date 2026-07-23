@@ -2,7 +2,15 @@ import { useCallback, useEffect, useMemo, useReducer, useState, type ReactNode }
 import { usePersistence } from '../../persistence';
 import { pushRouteSession } from '../../route-sync';
 import { RestoreSessionDialog } from '../components/RestoreSessionDialog';
-import { DeliveryStatus, GeocodingStatus, type Delivery, type DeliveryAddress, type FailureReasonCode, type RouteSession } from '../types';
+import {
+  DeliveryStatus,
+  GeocodingStatus,
+  type Coordinates,
+  type Delivery,
+  type DeliveryAddress,
+  type FailureReasonCode,
+  type RouteSession,
+} from '../types';
 import { RouteContext } from './routeContextObject';
 import { createRouteSession, routeReducer } from './routeReducer';
 
@@ -92,6 +100,13 @@ export function RouteProvider({ children }: RouteProviderProps) {
     dispatch({ type: 'UPDATE_DELIVERY_ADDRESS', payload: { id, address } });
   }, []);
 
+  const updateDeliveryGeocoding = useCallback(
+    (id: string, coordinates: Coordinates | undefined, geocodingStatus: GeocodingStatus) => {
+      dispatch({ type: 'UPDATE_DELIVERY_GEOCODING', payload: { id, coordinates, geocodingStatus } });
+    },
+    [],
+  );
+
   const startNewRoute = useCallback(() => {
     dispatch({ type: 'START_NEW_ROUTE', payload: createRouteSession() });
   }, []);
@@ -120,6 +135,7 @@ export function RouteProvider({ children }: RouteProviderProps) {
       completeDelivery,
       failDelivery,
       editDeliveryAddress,
+      updateDeliveryGeocoding,
       startNewRoute,
     }),
     [
@@ -131,6 +147,7 @@ export function RouteProvider({ children }: RouteProviderProps) {
       completeDelivery,
       failDelivery,
       editDeliveryAddress,
+      updateDeliveryGeocoding,
       startNewRoute,
     ],
   );
