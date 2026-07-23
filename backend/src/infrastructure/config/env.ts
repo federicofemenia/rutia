@@ -42,6 +42,7 @@ function readDatabaseConfig(): DatabaseConfig {
 export const env = {
   geminiApiKey: requireEnv('GEMINI_API_KEY'),
   geminiModel: process.env.GEMINI_MODEL ?? 'gemini-3.1-flash-lite',
+  geoapifyApiKey: requireEnv('GEOAPIFY_API_KEY'),
   port: Number(process.env.PORT ?? 3000),
   database: readDatabaseConfig(),
   jwtSecret: requireEnv('JWT_SECRET'),

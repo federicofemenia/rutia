@@ -99,3 +99,19 @@ Se copió `backend/data/rutia.sqlite` (nunca se abrió el original con el códig
 - Turso en sí (crear las bases `rutia-development`/`rutia-production`, configurar las variables en cada ambiente desplegado) queda fuera de esta tarea a propósito — esto solo prepara el código para poder apuntarle.
 
 **Estado:** implementado y verificado localmente (tests, build, arranque manual con SQLite local, seed). Pendiente de probar contra una base Turso real antes de desplegar.
+
+## 2026-07-23 — Migración de Nominatim a Geoapify como proveedor de geocoding
+
+**Contexto**
+
+En producción (Render), la geocodificación empezó a fallar para todas las direcciones con `Nominatim respondió 429`. La causa raíz, documentada en la auditoría previa a esta decisión: Nominatim aplica su límite de 1 request/segundo **por IP**, y las IPs de datacenter de plataformas como Render son compartidas entre muchos clientes sin relación entre sí — por más que RUTIA respetara el ritmo, no controla el resto del tráfico saliendo por la misma IP. Además, la política de uso de Nominatim desalienta explícitamente el uso de la instancia pública para aplicaciones de producción con múltiples usuarios, recomendando self-host o un proveedor comercial.
+
+**Decisión**
+
+Se reemplazó el adaptador `NominatimGeocoder` por `GeoapifyGeocoder`, sin tocar el dominio: mismo puerto `Geocoder` (`geocode(address): Promise<GeocodeResult>`), mismos casos de uso (`OptimizeRoute`, `GeocodeDeliveryAddress`), mismo flujo (`OptimizeRoute → GeocoderPort → adaptador`). El resto de la aplicación no sabe qué proveedor hay detrás — el único punto de wiring es `app.ts` (`new GeoapifyGeocoder(env.geoapifyApiKey)` en vez de `new NominatimGeocoder()`).
+
+La lógica de decisión (`verified`/`ambiguous`/`notFound`, según país/provincia/localidad/altura del mejor resultado) se replicó en `GeoapifyCandidateSelector` con las mismas reglas y pesos que tenía `NominatimCandidateSelector` (eliminado junto con `NominatimGeocoder`), adaptada a los campos planos de la respuesta de Geoapify (`city`/`county`/`suburb` en vez de un objeto `address` anidado, `rank.confidence` en vez de `importance` como desempate). Se reutilizan sin cambios los normalizadores de dominio (`normalizeProvinceName`, `normalizeLocalityName`) — son provider-agnósticos.
+
+No se replicó el manejo de `Retry-After`/reintento único que tenía `NominatimGeocoder` para mitigar 429: Geoapify es un servicio con API key y cuota propia (no una instancia pública compartida), así que no está expuesto al mismo problema de "vecinos ruidosos" en la misma IP. Si en uso real aparecen errores temporales de Geoapify, se puede agregar la misma estrategia de backoff sin tocar el resto de la arquitectura.
+
+**Estado:** implementado y verificado con tests (lógica del selector). Pendiente de probar contra la API real de Geoapify con una API key válida — no se hizo esa prueba en esta sesión por no contar con una key todavía.

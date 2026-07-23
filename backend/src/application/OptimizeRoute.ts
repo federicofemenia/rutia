@@ -68,8 +68,8 @@ export class OptimizeRoute {
 
     for (const delivery of routableDeliveries) {
       // Solo `Pending` dispara una (re)geocodificación automática acá: es el único estado sin un
-      // resultado "definitivo" del proveedor. `Verified`/`Ambiguous`/`NotFound` ya consultaron a
-      // Nominatim antes y, para la misma dirección, van a dar el mismo resultado — reintentarlos
+      // resultado "definitivo" del proveedor. `Verified`/`Ambiguous`/`NotFound` ya consultaron al
+      // geocoder antes y, para la misma dirección, van a dar el mismo resultado — reintentarlos
       // en cada optimización solo gasta presupuesto de rate limit en direcciones que ya conocemos.
       // Para volver a intentar una de esas, el chofer edita la dirección (resetea a Pending, ver
       // `UPDATE_DELIVERY_ADDRESS` en el frontend) o usa el reintento manual de esa entrega puntual.

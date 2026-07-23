@@ -11,7 +11,7 @@ import { GeminiVisionAddressExtractor } from '../ai/GeminiVisionAddressExtractor
 import { JwtTokenService } from '../auth/JwtTokenService.js';
 import { env } from '../config/env.js';
 import { createDatabase } from '../database/createDatabase.js';
-import { NominatimGeocoder } from '../geocoding/NominatimGeocoder.js';
+import { GeoapifyGeocoder } from '../geocoding/GeoapifyGeocoder.js';
 import { SqliteRouteSessionRepository } from '../repositories/SqliteRouteSessionRepository.js';
 import { SqliteUserRepository } from '../repositories/SqliteUserRepository.js';
 import { OSRMRouteOptimizer } from '../routing/OSRMRouteOptimizer.js';
@@ -44,7 +44,7 @@ export async function createApp(): Promise<CreatedApp> {
   const extractor = new GeminiVisionAddressExtractor(env.geminiApiKey, env.geminiModel);
   const extractAddressFromImage = new ExtractAddressFromImage(extractor);
 
-  const geocoder = new NominatimGeocoder();
+  const geocoder = new GeoapifyGeocoder(env.geoapifyApiKey);
   const routeOptimizer = new OSRMRouteOptimizer();
   const optimizeRoute = new OptimizeRoute(geocoder, routeOptimizer);
   const geocodeDeliveryAddress = new GeocodeDeliveryAddress(geocoder);

@@ -3,7 +3,7 @@ import type { ArgentineProvince } from './argentineProvinces.js';
 /**
  * Normaliza texto libre para comparaciones tolerantes a mayúsculas, tildes, puntuación y
  * espacios — usada tanto para reconocer alias de provincia acá como para comparar localidades
- * contra los resultados de geocodificación (`NominatimGeocoder`).
+ * contra los resultados de geocodificación (`GeoapifyGeocoder`).
  */
 export function normalizeForComparison(value: string): string {
   return value
@@ -75,16 +75,16 @@ export function normalizePostalCode(value: string): string | undefined {
   return cleaned.length > 0 ? cleaned : undefined;
 }
 
-// Nominatim suele anteponer el nombre administrativo del partido/municipio/departamento al
-// nombre de la localidad propiamente dicha (ej. "Partido de Merlo" en vez de "Merlo") — quitarlo
-// es necesario para poder comparar contra lo que el repartidor (o Gemini) escribió, que rara vez
-// incluye ese prefijo.
+// Los proveedores de geocoding suelen anteponer el nombre administrativo del partido/municipio/
+// departamento al nombre de la localidad propiamente dicha (ej. "Partido de Merlo" en vez de
+// "Merlo") — quitarlo es necesario para poder comparar contra lo que el repartidor (o Gemini)
+// escribió, que rara vez incluye ese prefijo.
 const LOCALITY_PREFIXES = /^(partido de|municipio de|departamento de|provincia de)\s+/;
 
 /**
  * Normaliza un nombre de localidad para comparaciones tolerantes: minúsculas, sin tildes, sin
  * puntuación, sin espacios duplicados y sin prefijos administrativos comunes. Usada por
- * `NominatimCandidateSelector` para decidir si la localidad de un candidato coincide con la
+ * `GeoapifyCandidateSelector` para decidir si la localidad de un candidato coincide con la
  * esperada sin exigir una igualdad textual exacta.
  */
 export function normalizeLocalityName(value: string): string {
