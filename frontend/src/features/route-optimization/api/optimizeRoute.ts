@@ -11,6 +11,7 @@ export interface OptimizeRouteStats {
   verified: number;
   ambiguous: number;
   notFound: number;
+  error: number;
 }
 
 export interface OptimizeRouteResult {

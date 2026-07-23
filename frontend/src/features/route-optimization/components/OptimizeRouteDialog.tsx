@@ -18,15 +18,23 @@ const EMPTY_CUSTOM_ADDRESS: DeliveryAddress = { street: '', locality: '', provin
 
 function formatResultSummary({ stats }: OptimizeRouteResult): string {
   const readyLabel = stats.verified === 1 ? 'entrega lista' : 'entregas listas';
-  const summary = `Ruta optimizada. ${stats.verified} ${readyLabel}.`;
+  let summary = `Ruta optimizada. ${stats.verified} ${readyLabel}.`;
 
   const needsReview = stats.ambiguous + stats.notFound;
-  if (needsReview === 0) {
-    return summary;
+  if (needsReview > 0) {
+    const reviewLabel = needsReview === 1 ? 'requiere revisión' : 'requieren revisión';
+    summary += ` ${needsReview} ${reviewLabel}.`;
   }
 
-  const reviewLabel = needsReview === 1 ? 'requiere revisión' : 'requieren revisión';
-  return `${summary} ${needsReview} ${reviewLabel}.`;
+  if (stats.error > 0) {
+    // No es que la dirección esté mal: el proveedor de geocodificación no llegó a responder
+    // (red, timeout, límite temporal). Quedan como pendientes para reintentar, no como un
+    // resultado definitivo — por eso se distingue de "requiere revisión".
+    const errorLabel = stats.error === 1 ? 'no se pudo verificar' : 'no se pudieron verificar';
+    summary += ` ${stats.error} ${errorLabel} por un error temporal del servicio de mapas — probá optimizar de nuevo.`;
+  }
+
+  return summary;
 }
 
 export function OptimizeRouteDialog({ open, deliveries, onClose, onOptimized }: OptimizeRouteDialogProps) {
@@ -158,7 +166,7 @@ export function OptimizeRouteDialog({ open, deliveries, onClose, onOptimized }: 
 
           {step === 'result' && result && (
             <>
-              <Alert severity={result.stats.ambiguous + result.stats.notFound > 0 ? 'warning' : 'success'}>
+              <Alert severity={result.stats.ambiguous + result.stats.notFound + result.stats.error > 0 ? 'warning' : 'success'}>
                 {formatResultSummary(result)}
               </Alert>
               <Button variant="contained" onClick={handleDone}>

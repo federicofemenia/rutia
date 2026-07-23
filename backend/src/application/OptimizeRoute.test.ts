@@ -30,6 +30,12 @@ class ThrowingGeocoder implements Geocoder {
   }
 }
 
+class FailingGeocoder implements Geocoder {
+  async geocode(): Promise<GeocodeResult> {
+    throw new Error('Timeout simulado del proveedor de geocodificación.');
+  }
+}
+
 class RecordingRouteOptimizer implements RouteOptimizer {
   public calls: RouteStops[] = [];
 
@@ -89,6 +95,27 @@ test('mantiene la entrega en curso como próxima parada fija y la usa como punto
   assert.equal(optimizer.calls[0].stops.length, 2);
   const expectedStart: Coordinates = { latitude: 5, longitude: 5 };
   assert.deepEqual(optimizer.calls[0].start, expectedStart);
+});
+
+test('un error temporal del geocoder deja la entrega en Pending y se cuenta en stats.error, no en notFound', async () => {
+  const unresolved = makeDelivery({
+    id: 'u1',
+    coordinates: undefined,
+    geocodingStatus: GeocodingStatus.Pending,
+  });
+
+  const optimizer = new RecordingRouteOptimizer();
+  const useCase = new OptimizeRoute(new FailingGeocoder(), optimizer);
+
+  const result = await useCase.execute({
+    deliveries: [unresolved],
+    start: { latitude: 0, longitude: 0 },
+    end: { latitude: 0, longitude: 0 },
+  });
+
+  assert.deepEqual(result.stats, { verified: 0, ambiguous: 0, notFound: 0, error: 1 });
+  assert.equal(result.deliveries[0].geocodingStatus, GeocodingStatus.Pending);
+  assert.equal(optimizer.calls.length, 0);
 });
 
 test('sin entregas pendientes, devuelve las finalizadas sin llamar al optimizador', async () => {

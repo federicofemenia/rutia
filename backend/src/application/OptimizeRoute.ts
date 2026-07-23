@@ -18,6 +18,10 @@ export interface OptimizeRouteStats {
   verified: number;
   ambiguous: number;
   notFound: number;
+  /** Entregas que no se pudieron geocodificar por un error temporal del proveedor (red, timeout,
+   *  rate limit) — a diferencia de `notFound`, acá el proveedor no llegó a responder con
+   *  candidatos. Quedan con geocodingStatus `Pending` para reintentar en la próxima optimización. */
+  error: number;
 }
 
 export interface OptimizeRouteResult {
@@ -101,6 +105,7 @@ export class OptimizeRoute {
       verified: verifiedDeliveries.length,
       ambiguous: unresolvedDeliveries.filter((delivery) => delivery.geocodingStatus === GeocodingStatus.Ambiguous).length,
       notFound: unresolvedDeliveries.filter((delivery) => delivery.geocodingStatus === GeocodingStatus.NotFound).length,
+      error: unresolvedDeliveries.filter((delivery) => delivery.geocodingStatus === GeocodingStatus.Pending).length,
     };
 
     if (verifiedDeliveries.length === 0) {
