@@ -59,3 +59,33 @@ export interface RouteSession {
   updatedAt: Date;
   deliveries: Delivery[];
 }
+
+/** Un tramo del recorrido devuelto por OSRM — nunca se recalcula en el frontend. */
+export interface OptimizeRouteLeg {
+  /** Metros. */
+  distance: number;
+  /** Segundos. */
+  duration: number;
+  /** `null` cuando el origen del tramo es el punto de partida (no una entrega). */
+  fromDeliveryId: string | null;
+  /** `null` cuando el destino del tramo es el destino final de la ruta (no una entrega). */
+  toDeliveryId: string | null;
+}
+
+export interface OptimizeRouteSummary {
+  /** Metros, recorrido completo. */
+  totalDistance: number;
+  /** Segundos, recorrido completo. */
+  totalDuration: number;
+  legs: OptimizeRouteLeg[];
+}
+
+/**
+ * `routeSummary` que vive en `RouteContext`: además de lo que devuelve el backend, agrega
+ * `hasCustomDestination` — si el chofer configuró una dirección final real al optimizar (en vez
+ * de "terminar en mi ubicación actual") — para que la última entrega muestre la distancia a ese
+ * destino en vez de "Última entrega". Es una decisión de UI, no viene de OSRM.
+ */
+export interface RouteSummaryInfo extends OptimizeRouteSummary {
+  hasCustomDestination: boolean;
+}

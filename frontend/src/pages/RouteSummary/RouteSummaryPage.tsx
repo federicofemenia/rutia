@@ -4,11 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../app/router/routes';
 import { NavigationDialog, type NavigationDestination } from '../../features/navigation';
 import {
+  buildDeliveryLegInfo,
   DeliveryActionsSheet,
   DeliveryListItem,
   formatFullAddress,
   GeocodingStatus,
   getVisibleDeliveries,
+  RouteOverviewCard,
   RouteSummaryStats,
   type Delivery,
   useRoute,
@@ -17,7 +19,7 @@ import { AppLayout, GradientHero } from '../../shared/components';
 
 export function RouteSummaryPage() {
   const navigate = useNavigate();
-  const { session } = useRoute();
+  const { session, routeSummary } = useRoute();
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
   const [navigationTarget, setNavigationTarget] = useState<Delivery | null>(null);
 
@@ -27,6 +29,7 @@ export function RouteSummaryPage() {
 
   const pendingCount = session.deliveries.filter((delivery) => delivery.geocodingStatus === GeocodingStatus.Pending).length;
   const visibleDeliveries = getVisibleDeliveries(session.deliveries);
+  const legInfoByDeliveryId = buildDeliveryLegInfo(routeSummary);
 
   return (
     <AppLayout
@@ -45,6 +48,8 @@ export function RouteSummaryPage() {
       }
     >
       <RouteSummaryStats deliveries={session.deliveries} />
+
+      {routeSummary && <RouteOverviewCard deliveryCount={visibleDeliveries.length} routeSummary={routeSummary} />}
 
       {pendingCount > 0 && (
         <Alert
@@ -66,6 +71,7 @@ export function RouteSummaryPage() {
           <DeliveryListItem
             key={delivery.id}
             delivery={delivery}
+            legInfo={legInfoByDeliveryId.get(delivery.id)}
             onOpen={setSelectedDelivery}
             onNavigate={setNavigationTarget}
           />

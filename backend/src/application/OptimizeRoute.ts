@@ -25,11 +25,33 @@ export interface OptimizeRouteStats {
   error: number;
 }
 
+export interface OptimizeRouteLeg {
+  /** Metros. */
+  distance: number;
+  /** Segundos. */
+  duration: number;
+  /** `null` cuando el origen del tramo es el punto de partida (no una entrega). */
+  fromDeliveryId: string | null;
+  /** `null` cuando el destino del tramo es el destino final de la ruta (no una entrega). */
+  toDeliveryId: string | null;
+}
+
+export interface OptimizeRouteSummary {
+  /** Metros, recorrido completo. */
+  totalDistance: number;
+  /** Segundos, recorrido completo. */
+  totalDuration: number;
+  /** Un tramo por cada segmento consecutivo del recorrido, en orden de visita. */
+  legs: OptimizeRouteLeg[];
+}
+
 export interface OptimizeRouteResult {
   /** Todas las entregas: las verificadas primero (en el orden optimizado), después las no
    *  resueltas (sin coordinates, conservan su geocodingStatus para que la UI las señale). */
   deliveries: Delivery[];
   stats: OptimizeRouteStats;
+  /** Ausente cuando no hubo ninguna entrega verificada para rutear (nada que optimizar). */
+  route?: OptimizeRouteSummary;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -108,18 +130,37 @@ export class OptimizeRoute {
     const reorderableDeliveries = verifiedDeliveries.filter((delivery) => delivery !== inProgressDelivery);
     const optimizerStart = inProgressDelivery ? inProgressDelivery.coordinates : start;
 
-    const order = await this.routeOptimizer.optimize({
+    const optimization = await this.routeOptimizer.optimize({
       start: optimizerStart,
       stops: reorderableDeliveries.map((delivery) => delivery.coordinates),
       end: endCoordinates,
     });
 
-    const orderedReorderableDeliveries = order.map((index) => reorderableDeliveries[index]);
+    const orderedReorderableDeliveries = optimization.order.map((index) => reorderableDeliveries[index]);
     const orderedVerifiedDeliveries = inProgressDelivery
       ? [inProgressDelivery, ...orderedReorderableDeliveries]
       : orderedReorderableDeliveries;
 
-    return { deliveries: [...finishedDeliveries, ...orderedVerifiedDeliveries, ...unresolvedDeliveries], stats };
+    // El optimizador (dominio) no sabe qué es una `Delivery`, solo trabaja con índices de
+    // `stops` — acá, que sí conoce `reorderableDeliveries`, se traduce cada tramo a ids de
+    // entrega. El origen del primer tramo es la entrega en curso si la hay (`optimizerStart`
+    // viene de ahí), o `null` si se partió desde la ubicación del chofer sin ninguna entrega en
+    // curso.
+    const deliveryIdForStopIndex = (stopIndex: number | null): string | null =>
+      stopIndex === null ? null : reorderableDeliveries[stopIndex].id;
+
+    const route: OptimizeRouteSummary = {
+      totalDistance: optimization.totalDistance,
+      totalDuration: optimization.totalDuration,
+      legs: optimization.legs.map((leg) => ({
+        distance: leg.distance,
+        duration: leg.duration,
+        fromDeliveryId: leg.fromStopIndex === null ? (inProgressDelivery?.id ?? null) : deliveryIdForStopIndex(leg.fromStopIndex),
+        toDeliveryId: deliveryIdForStopIndex(leg.toStopIndex),
+      })),
+    };
+
+    return { deliveries: [...finishedDeliveries, ...orderedVerifiedDeliveries, ...unresolvedDeliveries], stats, route };
   }
 
   private async resolveEndCoordinates(address: DeliveryAddress, calledGeocoderPreviously: boolean): Promise<Coordinates> {

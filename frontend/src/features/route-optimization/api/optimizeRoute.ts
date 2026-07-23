@@ -1,5 +1,5 @@
 import { authFetch } from '../../auth';
-import type { Coordinates, Delivery, DeliveryAddress } from '../../route';
+import type { Coordinates, Delivery, DeliveryAddress, OptimizeRouteSummary } from '../../route';
 
 export interface OptimizeRouteParams {
   deliveries: Delivery[];
@@ -17,6 +17,8 @@ export interface OptimizeRouteStats {
 export interface OptimizeRouteResult {
   deliveries: Delivery[];
   stats: OptimizeRouteStats;
+  /** Ausente cuando no hubo ninguna entrega verificada para rutear. */
+  route?: OptimizeRouteSummary;
 }
 
 const API_URL = import.meta.env.VITE_API_URL ?? '';

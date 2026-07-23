@@ -6,7 +6,7 @@ import { DeliveryStatus } from '../domain/DeliveryStatus.js';
 import type { DeliveryAddress } from '../domain/DeliveryAddress.js';
 import type { GeocodeResult, Geocoder } from '../domain/Geocoder.js';
 import { GeocodingStatus } from '../domain/GeocodingStatus.js';
-import type { RouteOptimizer, RouteStops } from '../domain/RouteOptimizer.js';
+import type { RouteLeg, RouteOptimizationResult, RouteOptimizer, RouteStops } from '../domain/RouteOptimizer.js';
 import { OptimizeRoute } from './OptimizeRoute.js';
 
 const ADDRESS: DeliveryAddress = { street: 'Calle', locality: 'Localidad', province: 'Buenos Aires', country: 'Argentina' };
@@ -39,11 +39,16 @@ class FailingGeocoder implements Geocoder {
 class RecordingRouteOptimizer implements RouteOptimizer {
   public calls: RouteStops[] = [];
 
-  constructor(private readonly orderToReturn?: number[]) {}
+  constructor(
+    private readonly orderToReturn?: number[],
+    private readonly legsToReturn?: RouteLeg[],
+  ) {}
 
-  async optimize(input: RouteStops): Promise<number[]> {
+  async optimize(input: RouteStops): Promise<RouteOptimizationResult> {
     this.calls.push(input);
-    return this.orderToReturn ?? input.stops.map((_, index) => index);
+    const order = this.orderToReturn ?? input.stops.map((_, index) => index);
+    const legs = this.legsToReturn ?? [];
+    return { order, totalDistance: 0, totalDuration: 0, legs };
   }
 }
 
@@ -71,6 +76,54 @@ test('no reordena entregas ya entregadas o fallidas, aunque queden más cerca de
   assert.equal(optimizer.calls.length, 1);
   assert.equal(optimizer.calls[0].stops.length, 2);
   assert.deepEqual(optimizer.calls[0].start, { latitude: 0, longitude: 0 });
+});
+
+test('arma route.legs traduciendo los índices de parada del optimizador a ids de entrega', async () => {
+  const pending1 = makeDelivery({ id: 'p1', coordinates: { latitude: 1, longitude: 1 } });
+  const pending2 = makeDelivery({ id: 'p2', coordinates: { latitude: 2, longitude: 2 } });
+
+  // Sin entrega en curso: el primer tramo (partida -> primera parada) no tiene deliveryId de
+  // origen. `order: [1, 0]` visita p2 primero, después p1.
+  const legs: RouteLeg[] = [
+    { distance: 1000, duration: 100, fromStopIndex: null, toStopIndex: 1 },
+    { distance: 500, duration: 50, fromStopIndex: 1, toStopIndex: 0 },
+    { distance: 2000, duration: 200, fromStopIndex: 0, toStopIndex: null },
+  ];
+  const optimizer = new RecordingRouteOptimizer([1, 0], legs);
+  const useCase = new OptimizeRoute(new ThrowingGeocoder(), optimizer);
+
+  const result = await useCase.execute({
+    deliveries: [pending1, pending2],
+    start: { latitude: 0, longitude: 0 },
+    end: { latitude: 0, longitude: 0 },
+  });
+
+  assert.deepEqual(result.route, {
+    totalDistance: 0,
+    totalDuration: 0,
+    legs: [
+      { distance: 1000, duration: 100, fromDeliveryId: null, toDeliveryId: 'p2' },
+      { distance: 500, duration: 50, fromDeliveryId: 'p2', toDeliveryId: 'p1' },
+      { distance: 2000, duration: 200, fromDeliveryId: 'p1', toDeliveryId: null },
+    ],
+  });
+});
+
+test('cuando hay una entrega en curso, es el origen del primer tramo en vez de null', async () => {
+  const inProgress = makeDelivery({ id: 'ip', status: DeliveryStatus.InProgress, coordinates: { latitude: 5, longitude: 5 } });
+  const pending1 = makeDelivery({ id: 'p1', coordinates: { latitude: 1, longitude: 1 } });
+
+  const legs: RouteLeg[] = [{ distance: 300, duration: 30, fromStopIndex: null, toStopIndex: 0 }];
+  const optimizer = new RecordingRouteOptimizer([0], legs);
+  const useCase = new OptimizeRoute(new ThrowingGeocoder(), optimizer);
+
+  const result = await useCase.execute({
+    deliveries: [inProgress, pending1],
+    start: { latitude: 0, longitude: 0 },
+    end: { latitude: 0, longitude: 0 },
+  });
+
+  assert.deepEqual(result.route?.legs, [{ distance: 300, duration: 30, fromDeliveryId: 'ip', toDeliveryId: 'p1' }]);
 });
 
 test('mantiene la entrega en curso como próxima parada fija y la usa como punto de partida para reordenar el resto', async () => {

@@ -2,18 +2,19 @@ import { Button, type ButtonProps } from '@mui/material';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../app/router/routes';
-import { type Delivery, useRoute } from '../../route';
+import { type Delivery, type OptimizeRouteSummary, useRoute } from '../../route';
 import { OptimizeRouteDialog } from './OptimizeRouteDialog';
 
 type StartDeliveryButtonProps = Pick<ButtonProps, 'variant' | 'size' | 'fullWidth' | 'sx'>;
 
 export function StartDeliveryButton(buttonProps: StartDeliveryButtonProps) {
   const navigate = useNavigate();
-  const { session, reorderDeliveries } = useRoute();
+  const { session, reorderDeliveries, setRouteSummary } = useRoute();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const handleOptimized = (deliveries: Delivery[]) => {
+  const handleOptimized = (deliveries: Delivery[], route: OptimizeRouteSummary | undefined, hasCustomDestination: boolean) => {
     reorderDeliveries(deliveries);
+    setRouteSummary(route, hasCustomDestination);
     navigate(ROUTES.routeSummary);
   };
 

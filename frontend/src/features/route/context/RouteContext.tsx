@@ -9,7 +9,9 @@ import {
   type Delivery,
   type DeliveryAddress,
   type FailureReasonCode,
+  type OptimizeRouteSummary,
   type RouteSession,
+  type RouteSummaryInfo,
 } from '../types';
 import { RouteContext } from './routeContextObject';
 import { createRouteSession, routeReducer } from './routeReducer';
@@ -27,6 +29,10 @@ export function RouteProvider({ children }: RouteProviderProps) {
 
   const [phase, setPhase] = useState<InitPhase>('checking');
   const [restorableSession, setRestorableSession] = useState<RouteSession | null>(null);
+  // Ephemeral, no se persiste (ni localStorage ni backend): es el resultado de la última
+  // optimización, se recalcula cada vez que se toca "Optimizar ruta" — no es parte del dominio
+  // de la sesión (`RouteSession`/`Delivery` no cambian), solo datos para mostrar.
+  const [routeSummary, setRouteSummaryState] = useState<RouteSummaryInfo | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,8 +113,13 @@ export function RouteProvider({ children }: RouteProviderProps) {
     [],
   );
 
+  const setRouteSummary = useCallback((summary: OptimizeRouteSummary | undefined, hasCustomDestination: boolean) => {
+    setRouteSummaryState(summary ? { ...summary, hasCustomDestination } : null);
+  }, []);
+
   const startNewRoute = useCallback(() => {
     dispatch({ type: 'START_NEW_ROUTE', payload: createRouteSession() });
+    setRouteSummaryState(null);
   }, []);
 
   const handleContinue = useCallback(() => {
@@ -136,6 +147,8 @@ export function RouteProvider({ children }: RouteProviderProps) {
       failDelivery,
       editDeliveryAddress,
       updateDeliveryGeocoding,
+      routeSummary,
+      setRouteSummary,
       startNewRoute,
     }),
     [
@@ -148,6 +161,8 @@ export function RouteProvider({ children }: RouteProviderProps) {
       failDelivery,
       editDeliveryAddress,
       updateDeliveryGeocoding,
+      routeSummary,
+      setRouteSummary,
       startNewRoute,
     ],
   );

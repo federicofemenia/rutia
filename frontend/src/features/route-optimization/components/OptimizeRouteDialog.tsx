@@ -1,7 +1,7 @@
 import { Alert, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Typography } from '@mui/material';
 import { useCallback, useEffect, useState } from 'react';
 import { useCurrentLocation } from '../../geolocation';
-import { AddressFields, type Coordinates, type Delivery, type DeliveryAddress } from '../../route';
+import { AddressFields, type Coordinates, type Delivery, type DeliveryAddress, type OptimizeRouteSummary } from '../../route';
 import type { OptimizeRouteResult } from '../api/optimizeRoute';
 import { useOptimizeRoute } from '../hooks/useOptimizeRoute';
 
@@ -11,7 +11,7 @@ interface OptimizeRouteDialogProps {
   open: boolean;
   deliveries: Delivery[];
   onClose: () => void;
-  onOptimized: (deliveries: Delivery[]) => void;
+  onOptimized: (deliveries: Delivery[], route: OptimizeRouteSummary | undefined, hasCustomDestination: boolean) => void;
 }
 
 const EMPTY_CUSTOM_ADDRESS: DeliveryAddress = { street: '', locality: '', province: '', country: 'Argentina' };
@@ -42,6 +42,7 @@ export function OptimizeRouteDialog({ open, deliveries, onClose, onOptimized }: 
   const [start, setStart] = useState<Coordinates | null>(null);
   const [customAddress, setCustomAddress] = useState<DeliveryAddress>(EMPTY_CUSTOM_ADDRESS);
   const [result, setResult] = useState<OptimizeRouteResult | null>(null);
+  const [hasCustomDestination, setHasCustomDestination] = useState(false);
 
   const { requestLocation, errorMessage: locationErrorMessage } = useCurrentLocation();
   const { optimize, errorMessage: optimizeErrorMessage } = useOptimizeRoute();
@@ -65,6 +66,7 @@ export function OptimizeRouteDialog({ open, deliveries, onClose, onOptimized }: 
     if (open) {
       setCustomAddress(EMPTY_CUSTOM_ADDRESS);
       setResult(null);
+      setHasCustomDestination(false);
       startLocating();
     }
   }, [open, startLocating]);
@@ -75,6 +77,7 @@ export function OptimizeRouteDialog({ open, deliveries, onClose, onOptimized }: 
     }
 
     setStep('submitting');
+    setHasCustomDestination('address' in end);
     const optimizeResult = await optimize({ deliveries, start, end });
 
     if (optimizeResult) {
@@ -87,7 +90,7 @@ export function OptimizeRouteDialog({ open, deliveries, onClose, onOptimized }: 
 
   const handleDone = () => {
     if (result) {
-      onOptimized(result.deliveries);
+      onOptimized(result.deliveries, result.route, hasCustomDestination);
     }
     onClose();
   };
