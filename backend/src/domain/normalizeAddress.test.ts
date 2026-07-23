@@ -47,3 +47,10 @@ test('normalizeLocalityName ignora mayúsculas, tildes, puntuación y espacios d
   assert.equal(normalizeLocalityName('San Martín'), 'san martin');
   assert.equal(normalizeLocalityName('San, Martín.'), 'san martin');
 });
+
+test('normalizeLocalityName reconoce CABA/Capital Federal como la misma localidad que Ciudad Autónoma de Buenos Aires', () => {
+  assert.equal(normalizeLocalityName('CABA'), normalizeLocalityName('Ciudad Autónoma de Buenos Aires'));
+  assert.equal(normalizeLocalityName('caba'), normalizeLocalityName('Ciudad Autónoma de Buenos Aires'));
+  assert.equal(normalizeLocalityName('Capital Federal'), normalizeLocalityName('Ciudad Autónoma de Buenos Aires'));
+  assert.equal(normalizeLocalityName('Ciudad de Buenos Aires'), normalizeLocalityName('Ciudad Autónoma de Buenos Aires'));
+});

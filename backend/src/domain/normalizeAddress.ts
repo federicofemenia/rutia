@@ -81,10 +81,23 @@ export function normalizePostalCode(value: string): string | undefined {
 // escribió, que rara vez incluye ese prefijo.
 const LOCALITY_PREFIXES = /^(partido de|municipio de|departamento de|provincia de)\s+/;
 
+// CABA es un caso particular: es a la vez una provincia (ver PROVINCE_ALIASES) y, en la práctica,
+// el valor que la mayoría de las etiquetas/choferes ponen directamente como "localidad" en vez de
+// un barrio puntual (Recoleta, Palermo, etc.) — los geocoders devuelven la localidad como "Ciudad
+// Autónoma de Buenos Aires", así que sin este alias "CABA" como localidad nunca matchea contra
+// eso, aunque sean la misma entidad. Caso real: "peña 2058, CABA" daba `ambiguous` en vez de
+// `verified` porque "caba" no incluye ni está incluido en "ciudad autonoma de buenos aires".
+const LOCALITY_ALIASES: Record<string, string> = {
+  caba: 'ciudad autonoma de buenos aires',
+  'capital federal': 'ciudad autonoma de buenos aires',
+  'ciudad de buenos aires': 'ciudad autonoma de buenos aires',
+};
+
 /**
  * Normaliza un nombre de localidad para comparaciones tolerantes: minúsculas, sin tildes, sin
- * puntuación, sin espacios duplicados y sin prefijos administrativos comunes. Usada por
- * `GeoapifyCandidateSelector` para decidir si la localidad de un candidato coincide con la
+ * puntuación, sin espacios duplicados, sin prefijos administrativos comunes, y reconociendo
+ * "CABA"/"Capital Federal" como la misma localidad que "Ciudad Autónoma de Buenos Aires". Usada
+ * por `GeoapifyCandidateSelector` para decidir si la localidad de un candidato coincide con la
  * esperada sin exigir una igualdad textual exacta.
  */
 export function normalizeLocalityName(value: string): string {
@@ -94,5 +107,7 @@ export function normalizeLocalityName(value: string): string {
     .replace(/\s+/g, ' ')
     .trim();
 
-  return withoutPunctuation.replace(LOCALITY_PREFIXES, '').trim();
+  const withoutPrefix = withoutPunctuation.replace(LOCALITY_PREFIXES, '').trim();
+
+  return LOCALITY_ALIASES[withoutPrefix] ?? withoutPrefix;
 }

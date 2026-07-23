@@ -63,6 +63,36 @@ test('reconoce la localidad cuando aparece en suburb en vez de city', () => {
   assert.equal(result.status, 'verified');
 });
 
+test('caso real: locality "caba" acepta un resultado cuyo city es "Ciudad Autónoma de Buenos Aires"', () => {
+  const address: DeliveryAddress = {
+    street: 'Peña',
+    streetNumber: '2058',
+    postalCode: '1113',
+    locality: 'caba',
+    province: 'Ciudad Autónoma de Buenos Aires',
+    country: 'Argentina',
+  };
+  const results: GeoapifyResult[] = [
+    {
+      lat: -34.592463,
+      lon: -58.395767,
+      formatted: 'Pena 2058, Recoleta, 1126 Ciudad Autónoma de Buenos Aires, Argentina',
+      street: 'Peña',
+      housenumber: '2058',
+      suburb: 'Recoleta',
+      city: 'Ciudad Autónoma de Buenos Aires',
+      state: 'Ciudad de Buenos Aires',
+      country_code: 'ar',
+      postcode: '1126',
+      rank: { confidence: 0.8 },
+    },
+  ];
+
+  const result = selectBestGeoapifyResult(results, address);
+
+  assert.equal(result.status, 'verified');
+});
+
 test('descarta un resultado cuya provincia es claramente distinta a la esperada', () => {
   const results: GeoapifyResult[] = [
     { lat: -31.4201, lon: -64.1888, street: 'San Juan', housenumber: '2325', city: 'Merlo', state: 'Córdoba', country_code: 'ar' },
