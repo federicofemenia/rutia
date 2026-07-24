@@ -1,7 +1,7 @@
 import type { Coordinates } from '../../domain/Coordinates.js';
 import type { DeliveryAddress } from '../../domain/DeliveryAddress.js';
 import type { GeocodeMatchedAddress, GeocodeResult } from '../../domain/Geocoder.js';
-import { normalizeForComparison, normalizeLocalityName, normalizeProvinceName } from '../../domain/normalizeAddress.js';
+import { normalizeForComparison, normalizeLocalityName, normalizePostalCode, normalizeProvinceName } from '../../domain/normalizeAddress.js';
 
 export interface GeoapifyRank {
   confidence?: number;
@@ -40,6 +40,7 @@ export function getBestLocality(result: GeoapifyResult): string | undefined {
 
 type ProvinceSignal = 'match' | 'missing';
 type LocalitySignal = 'match' | 'missing' | 'mismatch';
+type PostalCodeSignal = 'match' | 'missing' | 'mismatch';
 
 interface ResultEvaluation {
   index: number;
@@ -49,6 +50,7 @@ interface ResultEvaluation {
   provinceConflict: boolean;
   provinceSignal: ProvinceSignal;
   localitySignal: LocalitySignal;
+  postalCodeSignal: PostalCodeSignal;
   bestLocality: string | undefined;
   hasRoad: boolean;
   hasHouseNumber: boolean;
@@ -92,6 +94,20 @@ function evaluateResult(result: GeoapifyResult, address: DeliveryAddress, index:
     localitySignal = actual.includes(expected) || expected.includes(actual) ? 'match' : 'mismatch';
   }
 
+  // El código postal argentino tradicional (4 dígitos, ej. "1722") queda contenido dentro del CPA
+  // alfanumérico que suelen devolver los geocoders (ej. "B1722ERH" = letra de provincia + esos
+  // mismos 4 dígitos + sufijo) — por eso se compara por inclusión, igual que provincia/localidad,
+  // en vez de exigir una igualdad exacta de formato.
+  let postalCodeSignal: PostalCodeSignal = 'missing';
+
+  if (address.postalCode && result.postcode) {
+    const expected = normalizePostalCode(address.postalCode);
+    const actual = normalizePostalCode(result.postcode);
+    if (expected && actual) {
+      postalCodeSignal = actual.includes(expected) || expected.includes(actual) ? 'match' : 'mismatch';
+    }
+  }
+
   let score = 0;
   if (provinceSignal === 'match') {
     score += 100;
@@ -100,6 +116,15 @@ function evaluateResult(result: GeoapifyResult, address: DeliveryAddress, index:
     score += 50;
   } else if (localitySignal === 'mismatch') {
     score -= 20;
+  }
+  if (postalCodeSignal === 'match') {
+    // Entre candidatos ya empatados en provincia/localidad/calle/altura (ej. varios tramos de la
+    // misma calle en distintos barrios de un mismo partido), el código postal es la señal que
+    // realmente distingue cuál es el correcto — sin este puntaje, ganaba el primero que devolvía
+    // la API sin importar si su CP coincidía con el que se pidió.
+    score += 20;
+  } else if (postalCodeSignal === 'mismatch') {
+    score -= 10;
   }
   if (hasRoad) {
     score += 15;
@@ -116,6 +141,7 @@ function evaluateResult(result: GeoapifyResult, address: DeliveryAddress, index:
     provinceConflict,
     provinceSignal,
     localitySignal,
+    postalCodeSignal,
     bestLocality,
     hasRoad,
     hasHouseNumber,
@@ -134,8 +160,20 @@ function buildMatchedAddress(result: GeoapifyResult): GeocodeMatchedAddress | un
 }
 
 function logEvaluation(evaluation: ResultEvaluation): void {
-  const { result, coordinates, countryOk, provinceConflict, provinceSignal, localitySignal, bestLocality, hasRoad, hasHouseNumber, confidence } =
-    evaluation;
+  const {
+    result,
+    coordinates,
+    countryOk,
+    provinceConflict,
+    provinceSignal,
+    localitySignal,
+    postalCodeSignal,
+    bestLocality,
+    hasRoad,
+    hasHouseNumber,
+    confidence,
+    score,
+  } = evaluation;
 
   console.log('[Geocoder] resultado candidato', {
     formatted: result.formatted,
@@ -149,9 +187,11 @@ function logEvaluation(evaluation: ResultEvaluation): void {
     provinceConflict,
     provinceSignal,
     localitySignal,
+    postalCodeSignal,
     hasRoad,
     hasHouseNumber,
     confidence,
+    score,
   });
 }
 

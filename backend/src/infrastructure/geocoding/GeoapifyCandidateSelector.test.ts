@@ -93,6 +93,45 @@ test('caso real: locality "caba" acepta un resultado cuyo city es "Ciudad Autón
   assert.equal(result.status, 'verified');
 });
 
+test('caso real: entre varios tramos empatados, prioriza el que coincide con el código postal pedido', () => {
+  // Reproduce "San Juan 2325, Merlo, CP 1722": Geoapify devuelve 4 candidatos empatados en
+  // provincia/localidad/calle/altura — el primero en el array tiene un CP distinto (B1718EVD),
+  // pero hay otros con CP que sí coincide (B1722ERH, contiene "1722"). Antes de este fix ganaba
+  // el primero sin importar el CP.
+  const results: GeoapifyResult[] = [
+    {
+      lat: -34.6607653,
+      lon: -58.7148336,
+      formatted: 'San Juan 2325, B1718 EVD Merlo, Argentina',
+      street: 'San Juan',
+      housenumber: '2325',
+      city: 'Merlo',
+      state: 'Buenos Aires',
+      country_code: 'ar',
+      postcode: 'B1718EVD',
+      rank: { confidence: 0.5 },
+    },
+    {
+      lat: -34.6589664,
+      lon: -58.7260005,
+      formatted: 'San Juan 2325, B1722 ERH Merlo, Argentina',
+      street: 'San Juan',
+      housenumber: '2325',
+      city: 'Merlo',
+      state: 'Buenos Aires',
+      country_code: 'ar',
+      postcode: 'B1722ERH',
+      rank: { confidence: 0.5 },
+    },
+  ];
+
+  const result = selectBestGeoapifyResult(results, BASE_ADDRESS);
+
+  assert.equal(result.status, 'verified');
+  assert.equal(result.status === 'verified' && result.coordinates.latitude, -34.6589664);
+  assert.equal(result.status === 'verified' && result.matchedAddress?.postalCode, 'B1722ERH');
+});
+
 test('descarta un resultado cuya provincia es claramente distinta a la esperada', () => {
   const results: GeoapifyResult[] = [
     { lat: -31.4201, lon: -64.1888, street: 'San Juan', housenumber: '2325', city: 'Merlo', state: 'Córdoba', country_code: 'ar' },
