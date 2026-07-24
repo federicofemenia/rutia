@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { type CameraStatus, useCamera } from '../../camera';
 import { useExtractAddress } from '../../address-extraction';
+import type { PlaceSelection } from '../../places';
 import { useAutoReoptimize, useRoute } from '../../route';
 import { type DeliveryDraft, ScannerPhase } from '../types';
 
@@ -12,10 +13,9 @@ interface UseDeliveryCaptureResult {
   requestCameraAccess: () => Promise<void>;
   errorMessage: string | null;
   draft: DeliveryDraft | null;
-  updateDraft: (patch: Partial<DeliveryDraft>) => void;
   captureAndExtract: () => Promise<void>;
   retry: () => Promise<void>;
-  confirmDelivery: () => void;
+  confirmDelivery: (selection: PlaceSelection) => void;
 }
 
 export function useDeliveryCapture(): UseDeliveryCaptureResult {
@@ -84,29 +84,24 @@ export function useDeliveryCapture(): UseDeliveryCaptureResult {
     await runExtraction(photo);
   }, [captureAndExtract, runExtraction]);
 
-  const updateDraft = useCallback((patch: Partial<DeliveryDraft>) => {
-    setDraft((prev) => (prev ? { ...prev, ...patch } : prev));
-  }, []);
+  const confirmDelivery = useCallback(
+    (selection: PlaceSelection) => {
+      const newDelivery = addDelivery({ address: selection.address, coordinates: selection.coordinates });
+      setDraft(null);
+      setErrorMessage(null);
+      capturedPhotoRef.current = null;
+      setPhase(ScannerPhase.Capturing);
 
-  const confirmDelivery = useCallback(() => {
-    if (!draft) {
-      return;
-    }
-
-    const newDelivery = addDelivery({ address: draft });
-    setDraft(null);
-    setErrorMessage(null);
-    capturedPhotoRef.current = null;
-    setPhase(ScannerPhase.Capturing);
-
-    // Si la ruta ya se había optimizado antes, esta entrega nueva todavía no participa del orden
-    // ni de las distancias — se recalcula sola, sin interrumpir el escaneo. Si es la primera vez
-    // (routeSummary null), no hay nada que recalcular todavía: eso lo dispara "Terminar y
-    // optimizar" al final del lote.
-    if (routeSummary) {
-      void triggerAutoReoptimize([...session.deliveries, newDelivery]);
-    }
-  }, [draft, addDelivery, routeSummary, triggerAutoReoptimize, session.deliveries]);
+      // Si la ruta ya se había optimizado antes, esta entrega nueva todavía no participa del orden
+      // ni de las distancias — se recalcula sola, sin interrumpir el escaneo. Si es la primera vez
+      // (routeSummary null), no hay nada que recalcular todavía: eso lo dispara "Terminar y
+      // optimizar" al final del lote.
+      if (routeSummary) {
+        void triggerAutoReoptimize([...session.deliveries, newDelivery]);
+      }
+    },
+    [addDelivery, routeSummary, triggerAutoReoptimize, session.deliveries],
+  );
 
   return {
     phase,
@@ -116,7 +111,6 @@ export function useDeliveryCapture(): UseDeliveryCaptureResult {
     requestCameraAccess: requestAccess,
     errorMessage,
     draft,
-    updateDraft,
     captureAndExtract,
     retry,
     confirmDelivery,

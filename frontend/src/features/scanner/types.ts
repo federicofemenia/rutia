@@ -1,4 +1,4 @@
-import type { DeliveryAddress } from '../route';
+import type { ExtractedAddressQuery } from '../address-extraction';
 
 export const ScannerPhase = {
   Capturing: 'capturing',
@@ -9,4 +9,4 @@ export const ScannerPhase = {
 
 export type ScannerPhase = (typeof ScannerPhase)[keyof typeof ScannerPhase];
 
-export type DeliveryDraft = DeliveryAddress;
+export type DeliveryDraft = ExtractedAddressQuery;

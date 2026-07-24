@@ -19,7 +19,6 @@ export function ScanPage() {
     requestCameraAccess,
     errorMessage,
     draft,
-    updateDraft,
     captureAndExtract,
     retry,
     confirmDelivery,
@@ -109,9 +108,7 @@ export function ScanPage() {
         </Stack>
       )}
 
-      {phase === ScannerPhase.Reviewing && draft && (
-        <DeliveryReviewCard value={draft} onChange={updateDraft} onSubmit={confirmDelivery} />
-      )}
+      {phase === ScannerPhase.Reviewing && draft && <DeliveryReviewCard value={draft} onConfirm={confirmDelivery} />}
 
       <OptimizeRouteDialog
         open={isDialogOpen}

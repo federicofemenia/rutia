@@ -1,9 +1,16 @@
 import { authFetch } from '../../auth';
-import type { DeliveryAddress } from '../../route';
 
-export type ExtractedAddress = DeliveryAddress;
+export interface ExtractedAddressQuery {
+  /** Texto de búsqueda listo para pasarle a Places Autocomplete como valor inicial. */
+  query: string;
+  /** 0-1, qué tan seguro está el extractor de haber leído la dirección correctamente. */
+  confidence: number;
+  /** true cuando conviene pedirle al chofer que revise/corrija el texto antes de buscarlo. */
+  needsUserConfirmation: boolean;
+}
+
 const API_URL = import.meta.env.VITE_API_URL ?? '';
-export async function extractAddress(imageBase64: string): Promise<ExtractedAddress> {
+export async function extractAddress(imageBase64: string): Promise<ExtractedAddressQuery> {
   const response = await authFetch(`${API_URL}/api/addresses/extract`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -14,5 +21,5 @@ export async function extractAddress(imageBase64: string): Promise<ExtractedAddr
     throw new Error('No se pudo extraer la dirección de la imagen.');
   }
 
-  return (await response.json()) as ExtractedAddress;
+  return (await response.json()) as ExtractedAddressQuery;
 }

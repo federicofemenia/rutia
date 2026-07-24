@@ -1,27 +1,23 @@
 import type { Coordinates } from '../domain/Coordinates.js';
 import type { Delivery } from '../domain/Delivery.js';
-import type { DeliveryAddress } from '../domain/DeliveryAddress.js';
 import { DeliveryStatus } from '../domain/DeliveryStatus.js';
-import type { Geocoder } from '../domain/Geocoder.js';
 import { GeocodingStatus } from '../domain/GeocodingStatus.js';
 import type { RouteOptimizer } from '../domain/RouteOptimizer.js';
-import { resolveGeocoding } from './resolveGeocoding.js';
-
-const GEOCODING_DELAY_MS = 1100;
 
 export interface OptimizeRouteInput {
   deliveries: Delivery[];
   start: Coordinates;
-  end: Coordinates | { address: DeliveryAddress };
+  end: Coordinates;
 }
 
 export interface OptimizeRouteStats {
   verified: number;
   ambiguous: number;
   notFound: number;
-  /** Entregas que no se pudieron geocodificar por un error temporal del proveedor (red, timeout,
-   *  rate limit) — a diferencia de `notFound`, acá el proveedor no llegó a responder con
-   *  candidatos. Quedan con geocodingStatus `Pending` para reintentar en la próxima optimización. */
+  /** Entregas sin resolver por ningún motivo previo (geocoding pendiente heredado de una versión
+   *  anterior de la app). Ya no se reintentan automáticamente acá — ver `Geocoder`/
+   *  `resolveGeocoding.ts`, que quedan disponibles para un caso futuro de import/administración
+   *  que sí necesite geocodificar texto libre server-side. */
   error: number;
 }
 
@@ -43,6 +39,9 @@ export interface OptimizeRouteSummary {
   totalDuration: number;
   /** Un tramo por cada segmento consecutivo del recorrido, en orden de visita. */
   legs: OptimizeRouteLeg[];
+  /** Geometría completa del recorrido (polyline codificado), para dibujar la ruta real en el
+   *  mapa. Ausente si el proveedor no la devuelve. */
+  encodedPolyline?: string;
 }
 
 export interface OptimizeRouteResult {
@@ -54,21 +53,19 @@ export interface OptimizeRouteResult {
   route?: OptimizeRouteSummary;
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
+/**
+ * Ordena entregas que ya tienen coordenadas resueltas (por Google Places, del lado del cliente) —
+ * a diferencia de la versión anterior, no geocodifica nada: bajo el flujo actual una entrega nace
+ * `Verified` o no nace, no hay estado `Pending` que reintentar en cada optimización.
+ */
 export class OptimizeRoute {
-  constructor(
-    private readonly geocoder: Geocoder,
-    private readonly routeOptimizer: RouteOptimizer,
-  ) {}
+  constructor(private readonly routeOptimizer: RouteOptimizer) {}
 
   async execute({ deliveries, start, end }: OptimizeRouteInput): Promise<OptimizeRouteResult> {
-    // Las entregas ya entregadas o fallidas son historial: nunca se vuelven a geocodificar ni
-    // a reordenar, sin importar dónde queden respecto al punto de partida actual — si no las
-    // separamos acá, el optimizador las trata como una parada más y puede "moverlas" a
-    // cualquier posición (incluida la primera) cuando se reoptimiza con paradas nuevas.
+    // Las entregas ya entregadas o fallidas son historial: nunca se vuelven a reordenar, sin
+    // importar dónde queden respecto al punto de partida actual — si no las separamos acá, el
+    // optimizador las trata como una parada más y puede "moverlas" a cualquier posición (incluida
+    // la primera) cuando se reoptimiza con paradas nuevas.
     const finishedDeliveries = deliveries.filter(
       (delivery) => delivery.status === DeliveryStatus.Delivered || delivery.status === DeliveryStatus.Failed,
     );
@@ -76,44 +73,11 @@ export class OptimizeRoute {
       (delivery) => delivery.status !== DeliveryStatus.Delivered && delivery.status !== DeliveryStatus.Failed,
     );
 
-    let calledGeocoderPreviously = false;
-
-    const geocode = async (address: DeliveryAddress) => {
-      if (calledGeocoderPreviously) {
-        await sleep(GEOCODING_DELAY_MS);
-      }
-      calledGeocoderPreviously = true;
-      return resolveGeocoding(this.geocoder, address);
-    };
-
-    const resolvedDeliveries: Delivery[] = [];
-
-    for (const delivery of routableDeliveries) {
-      // Solo `Pending` dispara una (re)geocodificación automática acá: es el único estado sin un
-      // resultado "definitivo" del proveedor. `Verified`/`Ambiguous`/`NotFound` ya consultaron al
-      // geocoder antes y, para la misma dirección, van a dar el mismo resultado — reintentarlos
-      // en cada optimización solo gasta presupuesto de rate limit en direcciones que ya conocemos.
-      // Para volver a intentar una de esas, el chofer edita la dirección (resetea a Pending, ver
-      // `UPDATE_DELIVERY_ADDRESS` en el frontend) o usa el reintento manual de esa entrega puntual.
-      if (delivery.geocodingStatus !== GeocodingStatus.Pending) {
-        resolvedDeliveries.push(delivery);
-        continue;
-      }
-
-      // `resolution.options` (ubicaciones empatadas) es propio del reintento manual e interactivo
-      // de una sola entrega — acá, en un lote automático, no hay forma de mostrarle un diálogo al
-      // chofer por cada una, así que se descarta y la entrega queda `Ambiguous` como cualquier
-      // otra que necesite revisión (ver el botón "Ubicar nuevamente"). `Delivery` tampoco tiene
-      // campo `options`, para no filtrar este dato transitorio a la sesión persistida.
-      const resolution = await geocode(delivery.address);
-      resolvedDeliveries.push({ ...delivery, coordinates: resolution.coordinates, geocodingStatus: resolution.geocodingStatus });
-    }
-
-    const verifiedDeliveries = resolvedDeliveries.filter(
+    const verifiedDeliveries = routableDeliveries.filter(
       (delivery): delivery is Delivery & { coordinates: Coordinates } =>
         delivery.geocodingStatus === GeocodingStatus.Verified && delivery.coordinates !== undefined,
     );
-    const unresolvedDeliveries = resolvedDeliveries.filter((delivery) => delivery.geocodingStatus !== GeocodingStatus.Verified);
+    const unresolvedDeliveries = routableDeliveries.filter((delivery) => delivery.geocodingStatus !== GeocodingStatus.Verified);
 
     const stats: OptimizeRouteStats = {
       verified: verifiedDeliveries.length,
@@ -126,8 +90,6 @@ export class OptimizeRoute {
       return { deliveries: [...finishedDeliveries, ...unresolvedDeliveries], stats };
     }
 
-    const endCoordinates = 'address' in end ? await this.resolveEndCoordinates(end.address, calledGeocoderPreviously) : end;
-
     // La entrega en curso ya está comprometida (el chofer ya la eligió y puede estar en camino):
     // no se reordena, queda como la próxima parada fija. El resto se optimiza a partir de ahí
     // (o del punto de partida dado, si no hay ninguna en curso).
@@ -138,7 +100,7 @@ export class OptimizeRoute {
     const optimization = await this.routeOptimizer.optimize({
       start: optimizerStart,
       stops: reorderableDeliveries.map((delivery) => delivery.coordinates),
-      end: endCoordinates,
+      end,
     });
 
     const orderedReorderableDeliveries = optimization.order.map((index) => reorderableDeliveries[index]);
@@ -163,22 +125,9 @@ export class OptimizeRoute {
         fromDeliveryId: leg.fromStopIndex === null ? (inProgressDelivery?.id ?? null) : deliveryIdForStopIndex(leg.fromStopIndex),
         toDeliveryId: deliveryIdForStopIndex(leg.toStopIndex),
       })),
+      ...(optimization.encodedPolyline ? { encodedPolyline: optimization.encodedPolyline } : {}),
     };
 
     return { deliveries: [...finishedDeliveries, ...orderedVerifiedDeliveries, ...unresolvedDeliveries], stats, route };
-  }
-
-  private async resolveEndCoordinates(address: DeliveryAddress, calledGeocoderPreviously: boolean): Promise<Coordinates> {
-    if (calledGeocoderPreviously) {
-      await sleep(GEOCODING_DELAY_MS);
-    }
-
-    const result = await this.geocoder.geocode(address);
-
-    if (result.status !== 'verified') {
-      throw new Error(`No se pudo geocodificar el destino final con confianza (estado: ${result.status}).`);
-    }
-
-    return result.coordinates;
   }
 }

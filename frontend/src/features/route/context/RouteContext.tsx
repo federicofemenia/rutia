@@ -6,6 +6,7 @@ import {
   DeliveryStatus,
   GeocodingStatus,
   type Coordinates,
+  type CustomDestination,
   type Delivery,
   type DeliveryAddress,
   type FailureReasonCode,
@@ -74,7 +75,9 @@ export function RouteProvider({ children }: RouteProviderProps) {
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
       status: DeliveryStatus.Pending,
-      geocodingStatus: GeocodingStatus.Pending,
+      // Places ya resolvió la dirección a coordenadas antes de llegar acá — nace `Verified`
+      // directamente, sin pasar por un estado intermedio a geocodificar.
+      geocodingStatus: input.coordinates ? GeocodingStatus.Verified : GeocodingStatus.Pending,
     };
     dispatch({ type: 'ADD_DELIVERY', payload: delivery });
     return delivery;
@@ -103,20 +106,13 @@ export function RouteProvider({ children }: RouteProviderProps) {
     [],
   );
 
-  const editDeliveryAddress = useCallback((id: string, address: DeliveryAddress) => {
-    dispatch({ type: 'UPDATE_DELIVERY_ADDRESS', payload: { id, address } });
+  const editDeliveryAddress = useCallback((id: string, address: DeliveryAddress, coordinates: Coordinates) => {
+    dispatch({ type: 'UPDATE_DELIVERY_ADDRESS', payload: { id, address, coordinates } });
   }, []);
 
-  const updateDeliveryGeocoding = useCallback(
-    (id: string, coordinates: Coordinates | undefined, geocodingStatus: GeocodingStatus) => {
-      dispatch({ type: 'UPDATE_DELIVERY_GEOCODING', payload: { id, coordinates, geocodingStatus } });
-    },
-    [],
-  );
-
   const setRouteSummary = useCallback(
-    (summary: OptimizeRouteSummary | undefined, hasCustomDestination: boolean, customDestinationAddress?: DeliveryAddress) => {
-      setRouteSummaryState(summary ? { ...summary, hasCustomDestination, customDestinationAddress } : null);
+    (summary: OptimizeRouteSummary | undefined, hasCustomDestination: boolean, customDestination?: CustomDestination) => {
+      setRouteSummaryState(summary ? { ...summary, hasCustomDestination, customDestination } : null);
     },
     [],
   );
@@ -151,7 +147,6 @@ export function RouteProvider({ children }: RouteProviderProps) {
       completeDelivery,
       failDelivery,
       editDeliveryAddress,
-      updateDeliveryGeocoding,
       routeSummary,
       setRouteSummary,
       reoptimizeStatus,
@@ -167,7 +162,6 @@ export function RouteProvider({ children }: RouteProviderProps) {
       completeDelivery,
       failDelivery,
       editDeliveryAddress,
-      updateDeliveryGeocoding,
       routeSummary,
       setRouteSummary,
       reoptimizeStatus,

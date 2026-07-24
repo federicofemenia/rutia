@@ -1,10 +1,10 @@
 import { authFetch } from '../../auth';
-import type { Coordinates, Delivery, DeliveryAddress, OptimizeRouteSummary } from '../types';
+import type { Coordinates, Delivery, OptimizeRouteSummary } from '../types';
 
 export interface OptimizeRouteParams {
   deliveries: Delivery[];
   start: Coordinates;
-  end: Coordinates | { address: DeliveryAddress };
+  end: Coordinates;
 }
 
 export interface OptimizeRouteStats {
@@ -26,11 +26,7 @@ export async function optimizeRoute({ deliveries, start, end }: OptimizeRoutePar
   const response = await authFetch(`${API_URL}/api/routes/optimize`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      deliveries,
-      start,
-      ...('address' in end ? { endAddress: end.address } : { end }),
-    }),
+    body: JSON.stringify({ deliveries, start, end }),
   });
 
   if (!response.ok) {

@@ -1,6 +1,6 @@
 /**
- * Formatea metros/segundos que ya vienen calculados por OSRM — no recalcula ninguna distancia ni
- * tiempo, solo elige cómo mostrar el número.
+ * Formatea metros/segundos que ya vienen calculados por Google Routes — no recalcula ninguna
+ * distancia ni tiempo, solo elige cómo mostrar el número.
  */
 
 /** < 1km en metros redondeados ("350 m"), >= 1km en km con un decimal ("2.7 km"). */

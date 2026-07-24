@@ -1,31 +1,24 @@
-import { Alert, Button, Card, CardContent, Stack } from '@mui/material';
-import { AddressFields } from '../../route';
+import { Alert, Card, CardContent, Stack } from '@mui/material';
+import { PlacesAutocompleteInput, type PlaceSelection } from '../../places';
 import type { DeliveryDraft } from '../types';
 
 interface DeliveryReviewCardProps {
   value: DeliveryDraft;
-  onChange: (patch: Partial<DeliveryDraft>) => void;
-  onSubmit: () => void;
+  onConfirm: (selection: PlaceSelection) => void;
 }
 
-export function DeliveryReviewCard({ value, onChange, onSubmit }: DeliveryReviewCardProps) {
-  const canConfirm = value.street.trim().length > 0 && value.locality.trim().length > 0 && value.province.trim().length > 0;
-
+export function DeliveryReviewCard({ value, onConfirm }: DeliveryReviewCardProps) {
   return (
     <Card sx={{ width: '100%', maxWidth: 480, mx: 'auto' }}>
       <CardContent>
         <Stack spacing={1.5}>
-          <AddressFields value={value} onChange={onChange} />
-
-          {!canConfirm && (
+          {value.needsUserConfirmation && (
             <Alert severity="warning" variant="outlined">
-              Completá calle, localidad y provincia para confirmar.
+              No pudimos leer la dirección con confianza. Revisá la búsqueda antes de confirmar.
             </Alert>
           )}
 
-          <Button variant="contained" fullWidth onClick={onSubmit} disabled={!canConfirm}>
-            Confirmar
-          </Button>
+          <PlacesAutocompleteInput initialQuery={value.query} label="Dirección de entrega" onSelect={onConfirm} />
         </Stack>
       </CardContent>
     </Card>

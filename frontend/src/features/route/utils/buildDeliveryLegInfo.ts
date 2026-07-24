@@ -2,7 +2,7 @@ import type { RouteSummaryInfo } from '../types';
 
 /**
  * Qué mostrar en la card de una entrega sobre el tramo hacia la siguiente parada — ya con los
- * valores de distancia/tiempo que vinieron de OSRM, sin volver a calcular nada acá.
+ * valores de distancia/tiempo que vinieron de Google Routes, sin volver a calcular nada acá.
  */
 export type DeliveryLegInfo =
   | { kind: 'next'; distance: number; duration: number }

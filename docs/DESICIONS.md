@@ -115,3 +115,32 @@ La lógica de decisión (`verified`/`ambiguous`/`notFound`, según país/provinc
 No se replicó el manejo de `Retry-After`/reintento único que tenía `NominatimGeocoder` para mitigar 429: Geoapify es un servicio con API key y cuota propia (no una instancia pública compartida), así que no está expuesto al mismo problema de "vecinos ruidosos" en la misma IP. Si en uso real aparecen errores temporales de Geoapify, se puede agregar la misma estrategia de backoff sin tocar el resto de la arquitectura.
 
 **Estado:** implementado y verificado con tests (lógica del selector). Pendiente de probar contra la API real de Geoapify con una API key válida — no se hizo esa prueba en esta sesión por no contar con una key todavía.
+
+## 2026-07-24 — Migración completa a Google Maps Platform (Geoapify + OSRM + Leaflet → Places + Routes API + Maps JavaScript API)
+
+**Contexto**
+
+Ambas decisiones anteriores de este documento (Nominatim→Geoapify, y el uso original de OSRM/Leaflet) ya habían dejado anotado como riesgo pendiente evaluar una migración directa a Google Maps Platform antes de producción. Se decidió encarar esa migración completa: reemplazar Geoapify (geocoding), OSRM público (optimización de ruta) y Leaflet (mapa) por el ecosistema de Google. El detalle completo (arquitectura, plan por etapas, decisiones de diseño con su justificación, y qué queda pendiente) vive en `docs/google-migration.md`, que se mantuvo actualizado etapa por etapa durante la implementación — esta entrada es un resumen para el registro histórico de decisiones.
+
+**Decisión**
+
+- **Routes API v2** reemplaza OSRM en el mismo puerto `RouteOptimizer` (`GoogleRoutesOptimizer`), con `optimizeWaypointOrder: true` y un `X-Goog-FieldMask` acotado como control de costo. El resultado ahora incluye `encodedPolyline` (geometría real de la ruta), que antes no existía.
+- **Places Autocomplete + Place Details, vía el SDK oficial `@vis.gl/react-google-maps`** (no REST manual — no apareció ninguna limitación real del SDK que lo justificara) reemplazan el formulario manual de dirección en los 3 lugares donde se usaba. La geocodificación pasa a resolverse **enteramente del lado del cliente**: una entrega nace con coordenadas ya verificadas (elegidas por el chofer entre sugerencias reales) o no nace — ya no existe el estado intermedio "creada pero sin ubicar" que había que reintentar.
+- **Consecuencia arquitectónica de lo anterior**: `OptimizeRoute` (backend) se simplificó — ya no geocodifica nada, solo ordena entregas que ya tienen coordenadas. El botón "Ubicar nuevamente" y el diálogo de ubicaciones empatadas se eliminaron por completo (ya no tienen un estado que resolver); se agregó en su lugar una acción de eliminar en las cards de entregas no iniciadas, que dispara el mismo recálculo automático en segundo plano que ya existía para otros cambios.
+- **El puerto `Geocoder` (dominio) no se eliminó**, a pedido explícito: se borró únicamente el adapter `GeoapifyGeocoder` y su wiring HTTP (`/api/deliveries/geocode`). `Geocoder`, `resolveGeocoding.ts` y `GeocodeDeliveryAddress.ts` quedan en el código, compilando, con sus tests basados en stubs — infraestructura lista para un futuro caso (import masivo, panel de administración) sin adapter activo detrás.
+- **`@vis.gl/react-google-maps`** reemplaza `react-leaflet` para el mapa (`<Map>`, `<AdvancedMarker>`, `<InfoWindow>`, `<Polyline encodedPath={...}>` decodificando directamente el polyline de Routes, sin geometría recalculada en React).
+- Se eliminaron `leaflet`, `react-leaflet`, `@types/leaflet`, `GeoapifyGeocoder`/`GeoapifyCandidateSelector` (+tests), `geocodeDeliveryAddressController.ts`, `AddressFields.tsx`, `GeocodeOptionsDialog.tsx`, `useRetryGeocoding`/`retryGeocoding`, `domain/normalizeAddress.ts` (lógica de normalización específica de Geoapify, sin otro llamador), y el tipo `GeocodeCandidateOption` del frontend.
+
+**Motivos**
+
+- El geocoding client-side vía Places elimina de raíz el problema de fondo que motivó la decisión anterior (rate limits por IP compartida de Render) — ya no hay ninguna llamada de geocoding de texto libre server-side en el flujo principal.
+- Un solo ecosistema (Places + Routes + Maps JS) en vez de tres proveedores distintos simplifica la superficie de configuración/cuotas/facturación a futuro.
+- La arquitectura hexagonal existente absorbió el cambio sin fricción: los puertos (`RouteOptimizer`) no cambiaron de forma, solo el adapter detrás; el dominio nunca conoció Geoapify/OSRM/Leaflet ni conoce Google ahora.
+
+**Riesgos/pendientes**
+
+- Sin probar contra la API real de Google (Places, Routes, Maps JS) — se construyó todo con tests mockeados/de lógica pura, a pedido explícito, para probarlo una vez que se configuren las API keys reales en Google Cloud Console.
+- No hay infraestructura de testing de componentes/hooks de React en el proyecto (los tests son 100% funciones puras) — `usePlacesAutocomplete`, `PlacesAutocompleteInput` y el flujo de mapa no tienen test automatizado, solo verificación manual pendiente una vez configuradas las keys.
+- Detalle completo de deploy (Render/Vercel), restricciones recomendadas por API key, y configuración de cuotas/presupuesto: ver el informe final en `docs/google-migration.md`.
+
+**Estado:** implementado y verificado (lint + typecheck + tests + build, backend y frontend). Pendiente la prueba end-to-end real una vez configuradas las credenciales de Google Cloud.

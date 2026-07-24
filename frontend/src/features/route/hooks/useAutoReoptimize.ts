@@ -38,9 +38,7 @@ export function useAutoReoptimize(): UseAutoReoptimizeResult {
       }
 
       const end =
-        routeSummary.hasCustomDestination && routeSummary.customDestinationAddress
-          ? { address: routeSummary.customDestinationAddress }
-          : start;
+        routeSummary.hasCustomDestination && routeSummary.customDestination ? routeSummary.customDestination.coordinates : start;
 
       const result = await optimize({ deliveries, start, end });
       if (!result) {
@@ -49,7 +47,7 @@ export function useAutoReoptimize(): UseAutoReoptimizeResult {
       }
 
       reorderDeliveries(result.deliveries);
-      setRouteSummary(result.route, routeSummary.hasCustomDestination, routeSummary.customDestinationAddress);
+      setRouteSummary(result.route, routeSummary.hasCustomDestination, routeSummary.customDestination);
       setReoptimizeStatus('idle');
     },
     [routeSummary, requestLocation, optimize, reorderDeliveries, setRouteSummary, setReoptimizeStatus],

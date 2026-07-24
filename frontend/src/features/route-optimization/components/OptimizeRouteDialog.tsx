@@ -1,11 +1,11 @@
 import { Alert, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Typography } from '@mui/material';
 import { useCallback, useEffect, useState } from 'react';
 import { useCurrentLocation } from '../../geolocation';
+import { PlacesAutocompleteInput, type PlaceSelection } from '../../places';
 import {
-  AddressFields,
   type Coordinates,
+  type CustomDestination,
   type Delivery,
-  type DeliveryAddress,
   type OptimizeRouteResult,
   type OptimizeRouteSummary,
   useOptimizeRoute,
@@ -21,11 +21,9 @@ interface OptimizeRouteDialogProps {
     deliveries: Delivery[],
     route: OptimizeRouteSummary | undefined,
     hasCustomDestination: boolean,
-    customDestinationAddress?: DeliveryAddress,
+    customDestination?: CustomDestination,
   ) => void;
 }
-
-const EMPTY_CUSTOM_ADDRESS: DeliveryAddress = { street: '', locality: '', province: '', country: 'Argentina' };
 
 function formatResultSummary({ stats }: OptimizeRouteResult): string {
   const readyLabel = stats.verified === 1 ? 'entrega lista' : 'entregas listas';
@@ -38,11 +36,8 @@ function formatResultSummary({ stats }: OptimizeRouteResult): string {
   }
 
   if (stats.error > 0) {
-    // No es que la dirección esté mal: el proveedor de geocodificación no llegó a responder
-    // (red, timeout, límite temporal). Quedan como pendientes para reintentar, no como un
-    // resultado definitivo — por eso se distingue de "requiere revisión".
-    const errorLabel = stats.error === 1 ? 'no se pudo verificar' : 'no se pudieron verificar';
-    summary += ` ${stats.error} ${errorLabel} por un error temporal del servicio de mapas — probá optimizar de nuevo.`;
+    const errorLabel = stats.error === 1 ? 'no tiene ubicación' : 'no tienen ubicación';
+    summary += ` ${stats.error} ${errorLabel} — editá su dirección o eliminala.`;
   }
 
   return summary;
@@ -51,15 +46,12 @@ function formatResultSummary({ stats }: OptimizeRouteResult): string {
 export function OptimizeRouteDialog({ open, deliveries, onClose, onOptimized }: OptimizeRouteDialogProps) {
   const [step, setStep] = useState<Step>('locating');
   const [start, setStart] = useState<Coordinates | null>(null);
-  const [customAddress, setCustomAddress] = useState<DeliveryAddress>(EMPTY_CUSTOM_ADDRESS);
+  const [customDestination, setCustomDestination] = useState<CustomDestination | null>(null);
   const [result, setResult] = useState<OptimizeRouteResult | null>(null);
   const [hasCustomDestination, setHasCustomDestination] = useState(false);
 
   const { requestLocation, errorMessage: locationErrorMessage } = useCurrentLocation();
   const { optimize, errorMessage: optimizeErrorMessage } = useOptimizeRoute();
-
-  const canConfirmCustomAddress =
-    customAddress.street.trim().length > 0 && customAddress.locality.trim().length > 0 && customAddress.province.trim().length > 0;
 
   const startLocating = useCallback(async () => {
     setStep('locating');
@@ -75,20 +67,20 @@ export function OptimizeRouteDialog({ open, deliveries, onClose, onOptimized }: 
 
   useEffect(() => {
     if (open) {
-      setCustomAddress(EMPTY_CUSTOM_ADDRESS);
+      setCustomDestination(null);
       setResult(null);
       setHasCustomDestination(false);
       startLocating();
     }
   }, [open, startLocating]);
 
-  const runOptimize = async (end: Coordinates | { address: DeliveryAddress }) => {
+  const runOptimize = async (end: Coordinates, isCustomDestination: boolean) => {
     if (!start) {
       return;
     }
 
     setStep('submitting');
-    setHasCustomDestination('address' in end);
+    setHasCustomDestination(isCustomDestination);
     const optimizeResult = await optimize({ deliveries, start, end });
 
     if (optimizeResult) {
@@ -99,9 +91,14 @@ export function OptimizeRouteDialog({ open, deliveries, onClose, onOptimized }: 
     }
   };
 
+  const handleSelectDestination = (selection: PlaceSelection) => {
+    setCustomDestination(selection);
+    void runOptimize(selection.coordinates, true);
+  };
+
   const handleDone = () => {
     if (result) {
-      onOptimized(result.deliveries, result.route, hasCustomDestination, hasCustomDestination ? customAddress : undefined);
+      onOptimized(result.deliveries, result.route, hasCustomDestination, hasCustomDestination ? (customDestination ?? undefined) : undefined);
     }
     onClose();
   };
@@ -131,7 +128,7 @@ export function OptimizeRouteDialog({ open, deliveries, onClose, onOptimized }: 
             <>
               <Typography variant="body2">¿Querés terminar en tu ubicación actual?</Typography>
               <Stack direction="row" spacing={1}>
-                <Button variant="contained" onClick={() => start && runOptimize(start)}>
+                <Button variant="contained" onClick={() => start && runOptimize(start, false)}>
                   Sí
                 </Button>
                 <Button variant="outlined" onClick={() => setStep('enterAddress')}>
@@ -142,24 +139,7 @@ export function OptimizeRouteDialog({ open, deliveries, onClose, onOptimized }: 
           )}
 
           {step === 'enterAddress' && (
-            <>
-              <AddressFields
-                value={customAddress}
-                onChange={(patch) => setCustomAddress((previous) => ({ ...previous, ...patch }))}
-              />
-              {!canConfirmCustomAddress && (
-                <Alert severity="warning" variant="outlined">
-                  Completá calle, localidad y provincia para confirmar.
-                </Alert>
-              )}
-              <Button
-                variant="contained"
-                onClick={() => runOptimize({ address: customAddress })}
-                disabled={!canConfirmCustomAddress}
-              >
-                Confirmar
-              </Button>
-            </>
+            <PlacesAutocompleteInput label="Dirección de destino" onSelect={handleSelectDestination} />
           )}
 
           {step === 'submitting' && (

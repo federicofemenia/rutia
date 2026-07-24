@@ -1,5 +1,8 @@
-import { Alert, CircularProgress, Stack, Typography } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import { Alert, Box, CircularProgress, IconButton, Stack, Tooltip, Typography } from '@mui/material';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ROUTES } from '../../app/router/routes';
 import { NavigationDialog, type NavigationDestination } from '../../features/navigation';
 import {
   buildDeliveryLegInfo,
@@ -11,15 +14,23 @@ import {
   getVisibleDeliveries,
   RouteOverviewCard,
   RouteSummaryStats,
+  useAutoReoptimize,
   type Delivery,
   useRoute,
 } from '../../features/route';
 import { AppLayout, GradientHero } from '../../shared/components';
 
 export function RouteSummaryPage() {
-  const { session, routeSummary, reoptimizeStatus, startDelivery } = useRoute();
+  const navigate = useNavigate();
+  const { session, routeSummary, reoptimizeStatus, startDelivery, removeDelivery } = useRoute();
+  const { triggerAutoReoptimize } = useAutoReoptimize();
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
   const [navigationTarget, setNavigationTarget] = useState<Delivery | null>(null);
+
+  const handleDelete = (target: Delivery) => {
+    removeDelivery(target.id);
+    void triggerAutoReoptimize(session.deliveries.filter((delivery) => delivery.id !== target.id));
+  };
 
   const navigationDestination: NavigationDestination | null = navigationTarget
     ? { address: formatFullAddress(navigationTarget.address), coordinates: navigationTarget.coordinates }
@@ -35,14 +46,27 @@ export function RouteSummaryPage() {
       title="Entregas"
       header={
         <GradientHero>
-          <Typography component="h1" variant="h5" sx={{ fontWeight: 800 }}>
-            Entregas
-          </Typography>
-          <Typography variant="body2" sx={{ opacity: 0.8 }}>
-            {visibleDeliveries.length === 1
-              ? '1 envío asignado para hoy'
-              : `${visibleDeliveries.length} envíos asignados para hoy`}
-          </Typography>
+          <Stack direction="row" sx={{ alignItems: 'center' }}>
+            <Box sx={{ flexGrow: 1 }}>
+              <Typography component="h1" variant="h5" sx={{ fontWeight: 800 }}>
+                Entregas
+              </Typography>
+              <Typography variant="body2" sx={{ opacity: 0.8 }}>
+                {visibleDeliveries.length === 1
+                  ? '1 envío asignado para hoy'
+                  : `${visibleDeliveries.length} envíos asignados para hoy`}
+              </Typography>
+            </Box>
+            <Tooltip title="Agregar paquete">
+              <IconButton
+                aria-label="Agregar paquete"
+                onClick={() => navigate(ROUTES.scan)}
+                sx={{ color: 'inherit', bgcolor: 'rgba(255,255,255,0.15)' }}
+              >
+                <AddIcon />
+              </IconButton>
+            </Tooltip>
+          </Stack>
         </GradientHero>
       }
     >
@@ -66,8 +90,8 @@ export function RouteSummaryPage() {
       {pendingCount > 0 && (
         <Alert severity="warning">
           {pendingCount === 1
-            ? '1 entrega todavía no tiene ubicación. Abrila y probá "Ubicar nuevamente".'
-            : `${pendingCount} entregas todavía no tienen ubicación. Abrilas y probá "Ubicar nuevamente".`}
+            ? '1 entrega todavía no tiene ubicación. Editá su dirección o eliminala.'
+            : `${pendingCount} entregas todavía no tienen ubicación. Editá su dirección o eliminalas.`}
         </Alert>
       )}
 
@@ -81,6 +105,7 @@ export function RouteSummaryPage() {
             onOpen={setSelectedDelivery}
             onNavigate={setNavigationTarget}
             onStart={(target) => startDelivery(target.id)}
+            onDelete={handleDelete}
           />
         ))}
       </Stack>

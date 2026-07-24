@@ -1,2 +1,2 @@
 export { useExtractAddress } from './hooks/useExtractAddress';
-export type { ExtractedAddress } from './api/extractAddress';
+export type { ExtractedAddressQuery } from './api/extractAddress';

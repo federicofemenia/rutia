@@ -7,7 +7,6 @@ import {
   type FailureReasonCode,
   type RouteSession,
 } from '../types';
-import { hasAddressChanged } from '../utils/hasAddressChanged';
 
 export type RouteAction =
   | { type: 'ADD_DELIVERY'; payload: Delivery }
@@ -16,8 +15,7 @@ export type RouteAction =
   | { type: 'START_DELIVERY'; payload: { id: string } }
   | { type: 'COMPLETE_DELIVERY'; payload: { id: string } }
   | { type: 'FAIL_DELIVERY'; payload: { id: string; failureReasonCode: FailureReasonCode; failureReasonDetail?: string } }
-  | { type: 'UPDATE_DELIVERY_ADDRESS'; payload: { id: string; address: DeliveryAddress } }
-  | { type: 'UPDATE_DELIVERY_GEOCODING'; payload: { id: string; coordinates?: Coordinates; geocodingStatus: GeocodingStatus } }
+  | { type: 'UPDATE_DELIVERY_ADDRESS'; payload: { id: string; address: DeliveryAddress; coordinates: Coordinates } }
   | { type: 'RESTORE_SESSION'; payload: RouteSession }
   | { type: 'START_NEW_ROUTE'; payload: RouteSession };
 
@@ -107,30 +105,15 @@ export function routeReducer(state: RouteSession, action: RouteAction): RouteSes
         return state;
       }
 
-      const addressChanged = hasAddressChanged(target.address, action.payload.address);
-
+      // La nueva dirección siempre viene de una selección de Places ya resuelta a coordenadas
+      // (ver `PlacesAutocompleteInput`) — a diferencia del formulario manual que reemplaza, nunca
+      // hay un estado intermedio "dirección editada, coordenadas por confirmar".
       return {
         ...state,
         deliveries: updateDelivery(state.deliveries, action.payload.id, {
           address: action.payload.address,
-          ...(addressChanged ? { coordinates: undefined, geocodingStatus: GeocodingStatus.Pending } : {}),
-        }),
-        updatedAt: new Date(),
-      };
-    }
-
-    case 'UPDATE_DELIVERY_GEOCODING': {
-      const target = state.deliveries.find((delivery) => delivery.id === action.payload.id);
-
-      if (!target) {
-        return state;
-      }
-
-      return {
-        ...state,
-        deliveries: updateDelivery(state.deliveries, action.payload.id, {
           coordinates: action.payload.coordinates,
-          geocodingStatus: action.payload.geocodingStatus,
+          geocodingStatus: GeocodingStatus.Verified,
         }),
         updatedAt: new Date(),
       };

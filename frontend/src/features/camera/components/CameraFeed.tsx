@@ -51,7 +51,7 @@ export function CameraFeed({ videoRef, status, errorMessage, hidden = false }: C
         sx={{
           position: 'relative',
           width: '100%',
-          aspectRatio: '1 / 1',
+          aspectRatio: '2 / 1',
           borderRadius: 3,
           overflow: 'hidden',
           bgcolor: 'grey.900',
@@ -99,7 +99,7 @@ export function CameraFeed({ videoRef, status, errorMessage, hidden = false }: C
 
       {status === 'streaming' && (
         <Typography variant="caption" color="text.secondary">
-          Acercá la cámara a la etiqueta y encuadrala dentro del marco
+          Acercá la cámara a la dirección y encuadrala dentro del marco
         </Typography>
       )}
 

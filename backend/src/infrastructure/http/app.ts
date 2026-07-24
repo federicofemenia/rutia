@@ -2,7 +2,6 @@ import type { Client } from '@libsql/client';
 import express from 'express';
 import { AuthenticateUser } from '../../application/AuthenticateUser.js';
 import { ExtractAddressFromImage } from '../../application/ExtractAddressFromImage.js';
-import { GeocodeDeliveryAddress } from '../../application/GeocodeDeliveryAddress.js';
 import { GetDriverRouteSession } from '../../application/GetDriverRouteSession.js';
 import { GetRouteSession } from '../../application/GetRouteSession.js';
 import { OptimizeRoute } from '../../application/OptimizeRoute.js';
@@ -11,13 +10,11 @@ import { GeminiVisionAddressExtractor } from '../ai/GeminiVisionAddressExtractor
 import { JwtTokenService } from '../auth/JwtTokenService.js';
 import { env } from '../config/env.js';
 import { createDatabase } from '../database/createDatabase.js';
-import { GeoapifyGeocoder } from '../geocoding/GeoapifyGeocoder.js';
 import { SqliteRouteSessionRepository } from '../repositories/SqliteRouteSessionRepository.js';
 import { SqliteUserRepository } from '../repositories/SqliteUserRepository.js';
-import { OSRMRouteOptimizer } from '../routing/OSRMRouteOptimizer.js';
+import { GoogleRoutesOptimizer } from '../routing/GoogleRoutesOptimizer.js';
 import { createAuthMiddleware } from './authMiddleware.js';
 import { createExtractAddressController } from './extractAddressController.js';
-import { createGeocodeDeliveryAddressController } from './geocodeDeliveryAddressController.js';
 import { createGetDriverRouteSessionController } from './getDriverRouteSessionController.js';
 import { createGetRouteSessionController } from './getRouteSessionController.js';
 import { createLoginController } from './loginController.js';
@@ -44,10 +41,8 @@ export async function createApp(): Promise<CreatedApp> {
   const extractor = new GeminiVisionAddressExtractor(env.geminiApiKey, env.geminiModel);
   const extractAddressFromImage = new ExtractAddressFromImage(extractor);
 
-  const geocoder = new GeoapifyGeocoder(env.geoapifyApiKey);
-  const routeOptimizer = new OSRMRouteOptimizer();
-  const optimizeRoute = new OptimizeRoute(geocoder, routeOptimizer);
-  const geocodeDeliveryAddress = new GeocodeDeliveryAddress(geocoder);
+  const routeOptimizer = new GoogleRoutesOptimizer(env.googleMapsApiKey);
+  const optimizeRoute = new OptimizeRoute(routeOptimizer);
 
   const requireAuth = createAuthMiddleware(tokenService);
 
@@ -58,6 +53,7 @@ export async function createApp(): Promise<CreatedApp> {
       if (
         !origin ||
         origin === 'http://localhost:5173' ||
+        origin === 'https://localhost:5173' ||
         origin.endsWith('.vercel.app')
       ) {
         callback(null, true);
@@ -74,7 +70,6 @@ export async function createApp(): Promise<CreatedApp> {
   app.post('/api/auth/login', createLoginController(authenticateUser));
   app.post('/api/addresses/extract', requireAuth, createExtractAddressController(extractAddressFromImage));
   app.post('/api/routes/optimize', requireAuth, createOptimizeRouteController(optimizeRoute));
-  app.post('/api/deliveries/geocode', requireAuth, createGeocodeDeliveryAddressController(geocodeDeliveryAddress));
   app.put('/api/route-session', requireAuth, createSaveRouteSessionController(saveRouteSession));
   app.get('/api/route-session', requireAuth, createGetRouteSessionController(getRouteSession));
   app.get(

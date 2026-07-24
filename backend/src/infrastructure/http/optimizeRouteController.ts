@@ -2,7 +2,6 @@ import type { Request, Response } from 'express';
 import type { OptimizeRoute } from '../../application/OptimizeRoute.js';
 import type { Coordinates } from '../../domain/Coordinates.js';
 import type { Delivery } from '../../domain/Delivery.js';
-import type { DeliveryAddress } from '../../domain/DeliveryAddress.js';
 
 function isCoordinates(value: unknown): value is Coordinates {
   return (
@@ -13,27 +12,12 @@ function isCoordinates(value: unknown): value is Coordinates {
   );
 }
 
-function isDeliveryAddress(value: unknown): value is DeliveryAddress {
-  if (typeof value !== 'object' || value === null) {
-    return false;
-  }
-
-  const address = value as DeliveryAddress;
-  return (
-    typeof address.street === 'string' &&
-    typeof address.locality === 'string' &&
-    typeof address.province === 'string' &&
-    typeof address.country === 'string'
-  );
-}
-
 export function createOptimizeRouteController(useCase: OptimizeRoute) {
   return async function optimizeRouteController(req: Request, res: Response) {
-    const { deliveries, start, end, endAddress } = req.body as {
+    const { deliveries, start, end } = req.body as {
       deliveries?: unknown;
       start?: unknown;
       end?: unknown;
-      endAddress?: unknown;
     };
 
     if (!Array.isArray(deliveries) || deliveries.length === 0) {
@@ -46,8 +30,8 @@ export function createOptimizeRouteController(useCase: OptimizeRoute) {
       return;
     }
 
-    if (!isCoordinates(end) && !isDeliveryAddress(endAddress)) {
-      res.status(400).json({ error: 'Se requiere "end" (coordenadas) o "endAddress" (dirección estructurada).' });
+    if (!isCoordinates(end)) {
+      res.status(400).json({ error: 'El campo "end" es requerido y debe tener latitude/longitude.' });
       return;
     }
 
@@ -55,7 +39,7 @@ export function createOptimizeRouteController(useCase: OptimizeRoute) {
       const result = await useCase.execute({
         deliveries: deliveries as Delivery[],
         start,
-        end: isCoordinates(end) ? end : { address: endAddress as DeliveryAddress },
+        end,
       });
       res.status(200).json(result);
     } catch (error) {

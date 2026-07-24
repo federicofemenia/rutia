@@ -26,6 +26,10 @@ export interface RouteOptimizationResult {
   totalDuration: number;
   /** Un tramo por cada segmento consecutivo del recorrido, en orden de visita. */
   legs: RouteLeg[];
+  /** Geometría completa del recorrido (formato polyline codificado de Google), para dibujar la
+   *  ruta real en el mapa en vez de líneas rectas entre paradas. Ausente si el proveedor no la
+   *  devuelve. */
+  encodedPolyline?: string;
 }
 
 export interface RouteOptimizer {

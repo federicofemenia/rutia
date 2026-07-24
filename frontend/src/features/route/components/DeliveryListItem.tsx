@@ -1,10 +1,11 @@
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlineOutlined';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import FlagIcon from '@mui/icons-material/Flag';
 import NavigationIcon from '@mui/icons-material/Navigation';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import { Button, Card, CardActionArea, Stack, Tooltip, Typography } from '@mui/material';
+import { Button, Card, CardActionArea, IconButton, Stack, Tooltip, Typography } from '@mui/material';
 import type { ReactNode } from 'react';
 import { IconBadge } from '../../../shared/components';
 import { DELIVERY_STATUS_CONFIG } from '../config/deliveryStatusConfig';
@@ -24,6 +25,8 @@ interface DeliveryListItemProps {
   onOpen: (delivery: Delivery) => void;
   onNavigate: (delivery: Delivery) => void;
   onStart: (delivery: Delivery) => void;
+  /** Solo se ofrece para entregas todavía no iniciadas — ver `DeliveryStatus.Pending`. */
+  onDelete: (delivery: Delivery) => void;
 }
 
 const STATUS_ICON_BADGE_COLOR: Record<DeliveryStatus, 'warning' | 'info' | 'success' | 'error'> = {
@@ -66,16 +69,33 @@ function DeliveryLegRow({ legInfo }: { legInfo: DeliveryLegInfo }) {
   );
 }
 
-export function DeliveryListItem({ delivery, legInfo, hasActiveDelivery, onOpen, onNavigate, onStart }: DeliveryListItemProps) {
+export function DeliveryListItem({ delivery, legInfo, hasActiveDelivery, onOpen, onNavigate, onStart, onDelete }: DeliveryListItemProps) {
   const isInProgress = delivery.status === DeliveryStatus.InProgress;
-  const canStart = delivery.status === DeliveryStatus.Pending && !hasActiveDelivery;
+  const isPending = delivery.status === DeliveryStatus.Pending;
+  const canStart = isPending && !hasActiveDelivery;
   const reviewMessage = GEOCODING_REVIEW_MESSAGES[delivery.geocodingStatus];
   const StatusIcon = DELIVERY_STATUS_CONFIG[delivery.status].icon;
   const deliveredTime = formatDeliveredTime(delivery.deliveredAt);
 
   return (
-    <Card>
-      <CardActionArea onClick={() => onOpen(delivery)} sx={{ p: 1.5 }}>
+    <Card sx={{ position: 'relative' }}>
+      {isPending && (
+        <Tooltip title="Eliminar entrega">
+          <IconButton
+            aria-label="Eliminar entrega"
+            size="small"
+            onClick={(event) => {
+              event.stopPropagation();
+              onDelete(delivery);
+            }}
+            sx={{ position: 'absolute', top: 4, right: 4, zIndex: 1 }}
+          >
+            <DeleteOutlineIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      )}
+
+      <CardActionArea onClick={() => onOpen(delivery)} sx={{ p: 1.5, ...(isPending ? { pr: 5 } : {}) }}>
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
           <IconBadge icon={<StatusIcon fontSize="small" />} color={STATUS_ICON_BADGE_COLOR[delivery.status]} />
 

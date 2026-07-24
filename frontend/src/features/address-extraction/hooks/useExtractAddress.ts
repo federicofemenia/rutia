@@ -1,12 +1,12 @@
 import { useCallback, useState } from 'react';
-import { extractAddress, type ExtractedAddress } from '../api/extractAddress';
+import { extractAddress, type ExtractedAddressQuery } from '../api/extractAddress';
 
 export type ExtractAddressStatus = 'idle' | 'loading' | 'success' | 'error';
 
 interface UseExtractAddressResult {
   status: ExtractAddressStatus;
   errorMessage: string | null;
-  extract: (imageBase64: string) => Promise<ExtractedAddress | null>;
+  extract: (imageBase64: string) => Promise<ExtractedAddressQuery | null>;
 }
 
 export function useExtractAddress(): UseExtractAddressResult {

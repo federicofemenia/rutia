@@ -1,10 +1,10 @@
 import { createContext } from 'react';
 import type {
   Coordinates,
+  CustomDestination,
   Delivery,
   DeliveryAddress,
   FailureReasonCode,
-  GeocodingStatus,
   OptimizeRouteSummary,
   RouteSession,
   RouteSummaryInfo,
@@ -23,14 +23,13 @@ export interface RouteContextValue {
   startDelivery: (id: string) => void;
   completeDelivery: (id: string) => void;
   failDelivery: (id: string, failureReasonCode: FailureReasonCode, failureReasonDetail?: string) => void;
-  editDeliveryAddress: (id: string, address: DeliveryAddress) => void;
-  updateDeliveryGeocoding: (id: string, coordinates: Coordinates | undefined, geocodingStatus: GeocodingStatus) => void;
+  editDeliveryAddress: (id: string, address: DeliveryAddress, coordinates: Coordinates) => void;
   /** Resultado de la última optimización (distancia/tiempo por tramo) — `null` si todavía no se optimizó. */
   routeSummary: RouteSummaryInfo | null;
   setRouteSummary: (
     summary: OptimizeRouteSummary | undefined,
     hasCustomDestination: boolean,
-    customDestinationAddress?: DeliveryAddress,
+    customDestination?: CustomDestination,
   ) => void;
   /** Estado del recálculo automático en segundo plano (nueva entrega, "Ubicar nuevamente") — para mostrar feedback sin bloquear la UI. */
   reoptimizeStatus: ReoptimizeStatus;

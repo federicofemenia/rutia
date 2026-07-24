@@ -1,4 +1,3 @@
-export { AddressFields } from './components/AddressFields';
 export { DeliveryActionsSheet } from './components/DeliveryActionsSheet';
 export { DeliveryListItem } from './components/DeliveryListItem';
 export { DeliveryStatusChip } from './components/DeliveryStatusChip';
@@ -15,9 +14,9 @@ export type { OptimizeRouteParams, OptimizeRouteResult, OptimizeRouteStats } fro
 export { DeliveryStatus, FailureReasonCode, GeocodingStatus } from './types';
 export type {
   Coordinates,
+  CustomDestination,
   Delivery,
   DeliveryAddress,
-  GeocodeCandidateOption,
   OptimizeRouteLeg,
   OptimizeRouteSummary,
   RouteSession,
