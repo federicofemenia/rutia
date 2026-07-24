@@ -2,6 +2,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import FlagIcon from '@mui/icons-material/Flag';
 import NavigationIcon from '@mui/icons-material/Navigation';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { Button, Card, CardActionArea, Stack, Tooltip, Typography } from '@mui/material';
 import type { ReactNode } from 'react';
@@ -18,8 +19,11 @@ interface DeliveryListItemProps {
   delivery: Delivery;
   /** Distancia/tiempo hasta la siguiente parada (u "última entrega"), si la ruta fue optimizada. */
   legInfo?: DeliveryLegInfo;
+  /** Si ya hay otra entrega en curso — oculta "Iniciar reparto" acá, solo puede haber una a la vez. */
+  hasActiveDelivery: boolean;
   onOpen: (delivery: Delivery) => void;
   onNavigate: (delivery: Delivery) => void;
+  onStart: (delivery: Delivery) => void;
 }
 
 const STATUS_ICON_BADGE_COLOR: Record<DeliveryStatus, 'warning' | 'info' | 'success' | 'error'> = {
@@ -62,8 +66,9 @@ function DeliveryLegRow({ legInfo }: { legInfo: DeliveryLegInfo }) {
   );
 }
 
-export function DeliveryListItem({ delivery, legInfo, onOpen, onNavigate }: DeliveryListItemProps) {
+export function DeliveryListItem({ delivery, legInfo, hasActiveDelivery, onOpen, onNavigate, onStart }: DeliveryListItemProps) {
   const isInProgress = delivery.status === DeliveryStatus.InProgress;
+  const canStart = delivery.status === DeliveryStatus.Pending && !hasActiveDelivery;
   const reviewMessage = GEOCODING_REVIEW_MESSAGES[delivery.geocodingStatus];
   const StatusIcon = DELIVERY_STATUS_CONFIG[delivery.status].icon;
   const deliveredTime = formatDeliveredTime(delivery.deliveredAt);
@@ -109,6 +114,18 @@ export function DeliveryListItem({ delivery, legInfo, onOpen, onNavigate }: Deli
           sx={{ borderRadius: 0, py: 1 }}
         >
           Navegar
+        </Button>
+      )}
+
+      {canStart && (
+        <Button
+          fullWidth
+          color="primary"
+          startIcon={<PlayArrowIcon fontSize="small" />}
+          onClick={() => onStart(delivery)}
+          sx={{ borderRadius: 0, py: 1 }}
+        >
+          Iniciar reparto
         </Button>
       )}
     </Card>

@@ -195,14 +195,99 @@ test('caso real: varios tramos de la misma calle sin housenumber, misma confiden
   assert.equal(result.status === 'verified' && result.coordinates.latitude, -34.6589664);
 });
 
-test('usa confidence como desempate cuando el score propio es idéntico y la localidad coincide en ambos', () => {
+test('empate real sin código postal para desempatar: ambiguous con las dos ubicaciones como opciones, no elige una por confidence', () => {
+  // Ya no se resuelve solo: dos ubicaciones físicas distintas, mismo score, sin CP en la
+  // respuesta que ayude a distinguirlas — usar `confidence` para elegir en silencio puede mandar
+  // al chofer al lugar equivocado con toda confianza. Se ofrecen ambas como opciones.
   const results: GeoapifyResult[] = [
-    { lat: -34.1, lon: -58.1, street: 'San Juan', housenumber: '2325', city: 'Merlo', state: 'Buenos Aires', country_code: 'ar', rank: { confidence: 0.4 } },
-    { lat: -34.2, lon: -58.2, street: 'San Juan', housenumber: '2325', city: 'Merlo', state: 'Buenos Aires', country_code: 'ar', rank: { confidence: 0.9 } },
+    {
+      lat: -34.1,
+      lon: -58.1,
+      formatted: 'San Juan 2325, Barrio A, Merlo, Argentina',
+      street: 'San Juan',
+      housenumber: '2325',
+      city: 'Merlo',
+      state: 'Buenos Aires',
+      country_code: 'ar',
+      rank: { confidence: 0.4 },
+    },
+    {
+      lat: -34.2,
+      lon: -58.2,
+      formatted: 'San Juan 2325, Barrio B, Merlo, Argentina',
+      street: 'San Juan',
+      housenumber: '2325',
+      city: 'Merlo',
+      state: 'Buenos Aires',
+      country_code: 'ar',
+      rank: { confidence: 0.9 },
+    },
   ];
 
   const result = selectBestGeoapifyResult(results, BASE_ADDRESS);
 
-  assert.equal(result.status, 'verified');
-  assert.equal(result.status === 'verified' && result.coordinates.latitude, -34.2);
+  assert.equal(result.status, 'ambiguous');
+  const options = result.status === 'ambiguous' ? result.options : undefined;
+  assert.equal(options?.length, 2);
+  // Orden por confidence descendente (mismo criterio que ya se usaba para elegir "el mejor" antes
+  // de este cambio) — el de mayor confidence (Barrio B, 0.9) va primero.
+  assert.deepEqual(
+    options?.map((option) => option.coordinates),
+    [
+      { latitude: -34.2, longitude: -58.2 },
+      { latitude: -34.1, longitude: -58.1 },
+    ],
+  );
+  assert.equal(options?.[0]?.label, 'San Juan 2325, Barrio B, Merlo, Argentina');
+});
+
+test('caso real: 3 tramos de la misma calle con el mismo CP pedido, en ubicaciones distintas — ambiguous con 3 opciones', () => {
+  // Reproduce exactamente "San Juan 2325, Merlo, CP 1722" en vivo: 3 candidatos con postcode
+  // B1722ERH (coincide con 1722), misma localidad, mismo score — pero son 3 lugares físicos
+  // distintos (distintos barrios dentro de Merlo). El código postal ya no alcanza para elegir
+  // uno solo porque los 3 lo comparten.
+  const results: GeoapifyResult[] = [
+    {
+      lat: -34.6575276,
+      lon: -58.7352916,
+      formatted: 'San Juan 2325, Lago del Bosque, B1722 ERH Merlo, Argentina',
+      street: 'San Juan',
+      housenumber: '2325',
+      city: 'Merlo',
+      state: 'Buenos Aires',
+      country_code: 'ar',
+      postcode: 'B1722ERH',
+      rank: { confidence: 0.5 },
+    },
+    {
+      lat: -34.6584076,
+      lon: -58.7294762,
+      formatted: 'San Juan 2325, Barrio Argentino, B1722 ERH Merlo, Argentina',
+      street: 'San Juan',
+      housenumber: '2325',
+      city: 'Merlo',
+      state: 'Buenos Aires',
+      country_code: 'ar',
+      postcode: 'B1722ERH',
+      rank: { confidence: 0.5 },
+    },
+    {
+      lat: -34.6589664,
+      lon: -58.7260005,
+      formatted: 'San Juan 2325, B1722 ERH Merlo, Argentina',
+      street: 'San Juan',
+      housenumber: '2325',
+      city: 'Merlo',
+      state: 'Buenos Aires',
+      country_code: 'ar',
+      postcode: 'B1722ERH',
+      rank: { confidence: 0.5 },
+    },
+  ];
+
+  const result = selectBestGeoapifyResult(results, BASE_ADDRESS);
+
+  assert.equal(result.status, 'ambiguous');
+  const options = result.status === 'ambiguous' ? result.options : undefined;
+  assert.equal(options?.length, 3);
 });

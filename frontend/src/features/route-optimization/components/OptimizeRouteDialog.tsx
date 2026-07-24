@@ -1,9 +1,15 @@
 import { Alert, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Typography } from '@mui/material';
 import { useCallback, useEffect, useState } from 'react';
 import { useCurrentLocation } from '../../geolocation';
-import { AddressFields, type Coordinates, type Delivery, type DeliveryAddress, type OptimizeRouteSummary } from '../../route';
-import type { OptimizeRouteResult } from '../api/optimizeRoute';
-import { useOptimizeRoute } from '../hooks/useOptimizeRoute';
+import {
+  AddressFields,
+  type Coordinates,
+  type Delivery,
+  type DeliveryAddress,
+  type OptimizeRouteResult,
+  type OptimizeRouteSummary,
+  useOptimizeRoute,
+} from '../../route';
 
 type Step = 'locating' | 'locationError' | 'askEnd' | 'enterAddress' | 'submitting' | 'submitError' | 'result';
 
@@ -11,7 +17,12 @@ interface OptimizeRouteDialogProps {
   open: boolean;
   deliveries: Delivery[];
   onClose: () => void;
-  onOptimized: (deliveries: Delivery[], route: OptimizeRouteSummary | undefined, hasCustomDestination: boolean) => void;
+  onOptimized: (
+    deliveries: Delivery[],
+    route: OptimizeRouteSummary | undefined,
+    hasCustomDestination: boolean,
+    customDestinationAddress?: DeliveryAddress,
+  ) => void;
 }
 
 const EMPTY_CUSTOM_ADDRESS: DeliveryAddress = { street: '', locality: '', province: '', country: 'Argentina' };
@@ -90,7 +101,7 @@ export function OptimizeRouteDialog({ open, deliveries, onClose, onOptimized }: 
 
   const handleDone = () => {
     if (result) {
-      onOptimized(result.deliveries, result.route, hasCustomDestination);
+      onOptimized(result.deliveries, result.route, hasCustomDestination, hasCustomDestination ? customAddress : undefined);
     }
     onClose();
   };

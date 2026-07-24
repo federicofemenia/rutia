@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { type CameraStatus, useCamera } from '../../camera';
 import { useExtractAddress } from '../../address-extraction';
-import { useRoute } from '../../route';
+import { useAutoReoptimize, useRoute } from '../../route';
 import { type DeliveryDraft, ScannerPhase } from '../types';
 
 interface UseDeliveryCaptureResult {
@@ -27,7 +27,8 @@ export function useDeliveryCapture(): UseDeliveryCaptureResult {
     capturePhoto,
   } = useCamera();
   const { extract } = useExtractAddress();
-  const { addDelivery } = useRoute();
+  const { session, addDelivery, routeSummary } = useRoute();
+  const { triggerAutoReoptimize } = useAutoReoptimize();
 
   const [phase, setPhase] = useState<ScannerPhase>(ScannerPhase.Capturing);
   const [draft, setDraft] = useState<DeliveryDraft | null>(null);
@@ -92,12 +93,20 @@ export function useDeliveryCapture(): UseDeliveryCaptureResult {
       return;
     }
 
-    addDelivery({ address: draft });
+    const newDelivery = addDelivery({ address: draft });
     setDraft(null);
     setErrorMessage(null);
     capturedPhotoRef.current = null;
     setPhase(ScannerPhase.Capturing);
-  }, [draft, addDelivery]);
+
+    // Si la ruta ya se había optimizado antes, esta entrega nueva todavía no participa del orden
+    // ni de las distancias — se recalcula sola, sin interrumpir el escaneo. Si es la primera vez
+    // (routeSummary null), no hay nada que recalcular todavía: eso lo dispara "Terminar y
+    // optimizar" al final del lote.
+    if (routeSummary) {
+      void triggerAutoReoptimize([...session.deliveries, newDelivery]);
+    }
+  }, [draft, addDelivery, routeSummary, triggerAutoReoptimize, session.deliveries]);
 
   return {
     phase,

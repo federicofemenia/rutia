@@ -1,11 +1,13 @@
 import type { Coordinates } from '../domain/Coordinates.js';
 import type { DeliveryAddress } from '../domain/DeliveryAddress.js';
-import type { Geocoder } from '../domain/Geocoder.js';
+import type { GeocodeCandidateOption, Geocoder } from '../domain/Geocoder.js';
 import { GeocodingStatus } from '../domain/GeocodingStatus.js';
 
 export interface GeocodingResolution {
   coordinates?: Coordinates;
   geocodingStatus: GeocodingStatus;
+  /** Presente solo cuando hay más de una ubicación empatada — ver `GeocodeResult['options']`. */
+  options?: GeocodeCandidateOption[];
 }
 
 /**
@@ -25,8 +27,14 @@ export async function resolveGeocoding(geocoder: Geocoder, address: DeliveryAddr
     if (result.status === 'ambiguous') {
       // Conserva las coordenadas aunque queden marcadas para revisión: siguen sin usarse para
       // ordenar la ruta (solo entra al optimizador lo `Verified`), pero le dan al chofer un punto
-      // navegable en vez de nada mientras decide si confiar en él.
-      return { coordinates: result.coordinates, geocodingStatus: GeocodingStatus.Ambiguous };
+      // navegable en vez de nada mientras decide si confiar en él. `options`, cuando viene, deja
+      // que quien llamó (el reintento manual de una entrega) le ofrezca al chofer elegir entre
+      // las ubicaciones empatadas en vez de quedarse con la primera.
+      return {
+        coordinates: result.coordinates,
+        geocodingStatus: GeocodingStatus.Ambiguous,
+        ...(result.options ? { options: result.options } : {}),
+      };
     }
 
     return { geocodingStatus: GeocodingStatus.NotFound };

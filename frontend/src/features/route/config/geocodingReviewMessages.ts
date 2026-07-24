@@ -8,5 +8,5 @@ import { GeocodingStatus } from '../types';
 export const GEOCODING_REVIEW_MESSAGES: Partial<Record<GeocodingStatus, string>> = {
   [GeocodingStatus.Ambiguous]: 'Dirección ambigua: hay varias coincidencias posibles. Revisá localidad y provincia.',
   [GeocodingStatus.NotFound]: 'No se encontró la dirección en el mapa. Revisá los datos.',
-  [GeocodingStatus.Pending]: 'No se pudo optimizar todavía. Volvé a tocar "Optimizar ruta".',
+  [GeocodingStatus.Pending]: 'No se pudo ubicar todavía. Probá "Ubicar nuevamente".',
 };

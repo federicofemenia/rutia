@@ -1,9 +1,11 @@
 import { authFetch } from '../../auth';
-import type { Coordinates, DeliveryAddress, GeocodingStatus } from '../types';
+import type { Coordinates, DeliveryAddress, GeocodeCandidateOption, GeocodingStatus } from '../types';
 
 export interface GeocodingResolution {
   coordinates?: Coordinates;
   geocodingStatus: GeocodingStatus;
+  /** Presente solo cuando hay más de una ubicación empatada, para ofrecérselas al chofer. */
+  options?: GeocodeCandidateOption[];
 }
 
 const API_URL = import.meta.env.VITE_API_URL ?? '';

@@ -47,6 +47,19 @@ test('devuelve Ambiguous conservando las coordenadas del mejor candidato', async
   assert.deepEqual(resolution, { coordinates, geocodingStatus: GeocodingStatus.Ambiguous });
 });
 
+test('propaga options cuando hay varias ubicaciones empatadas', async () => {
+  const options = [
+    { coordinates: { latitude: 1, longitude: 1 }, label: 'Barrio A' },
+    { coordinates: { latitude: 2, longitude: 2 }, label: 'Barrio B' },
+  ];
+  const coordinates = { latitude: 1, longitude: 1 };
+  const useCase = new GeocodeDeliveryAddress(new StubGeocoder({ status: 'ambiguous', coordinates, options }));
+
+  const resolution = await useCase.execute(ADDRESS);
+
+  assert.deepEqual(resolution, { coordinates, geocodingStatus: GeocodingStatus.Ambiguous, options });
+});
+
 test('un error del geocoder no se propaga: devuelve Pending para poder reintentar después', async () => {
   const useCase = new GeocodeDeliveryAddress(new ThrowingGeocoder());
 

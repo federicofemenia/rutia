@@ -7,7 +7,6 @@ import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../app/router/routes';
 import { useAuth, UserRole } from '../../features/auth';
 import { DeliveryStatus, summarizeDeliveries, useRoute } from '../../features/route';
-import { StartDeliveryButton } from '../../features/route-optimization';
 import { AppLayout, BrandLogo, GradientHero, IconBadge, StatCard } from '../../shared/components';
 import { BRAND } from '../../shared/config/brand';
 import { TrackDriverDialog } from './components/TrackDriverDialog';
@@ -151,22 +150,6 @@ export function HomePage() {
           </Box>
         </CardContent>
       </Card>
-
-      {hasActiveRoute && (
-        <StartDeliveryButton
-          variant="contained"
-          size="large"
-          fullWidth
-          sx={{
-            borderRadius: 999,
-            py: 1,
-            fontWeight: 700,
-            letterSpacing: 1,
-            textTransform: 'uppercase',
-            boxShadow: '0 12px 24px -8px rgba(30, 58, 138, 0.5)',
-          }}
-        />
-      )}
 
       {user?.role === UserRole.Admin && (
         <Button variant="outlined" size="large" fullWidth onClick={() => setIsTrackDialogOpen(true)}>

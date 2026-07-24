@@ -1,12 +1,11 @@
-import { Alert, Button, Stack, Typography } from '@mui/material';
+import { Alert, CircularProgress, Stack, Typography } from '@mui/material';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ROUTES } from '../../app/router/routes';
 import { NavigationDialog, type NavigationDestination } from '../../features/navigation';
 import {
   buildDeliveryLegInfo,
   DeliveryActionsSheet,
   DeliveryListItem,
+  DeliveryStatus,
   formatFullAddress,
   GeocodingStatus,
   getVisibleDeliveries,
@@ -18,8 +17,7 @@ import {
 import { AppLayout, GradientHero } from '../../shared/components';
 
 export function RouteSummaryPage() {
-  const navigate = useNavigate();
-  const { session, routeSummary } = useRoute();
+  const { session, routeSummary, reoptimizeStatus, startDelivery } = useRoute();
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
   const [navigationTarget, setNavigationTarget] = useState<Delivery | null>(null);
 
@@ -30,6 +28,7 @@ export function RouteSummaryPage() {
   const pendingCount = session.deliveries.filter((delivery) => delivery.geocodingStatus === GeocodingStatus.Pending).length;
   const visibleDeliveries = getVisibleDeliveries(session.deliveries);
   const legInfoByDeliveryId = buildDeliveryLegInfo(routeSummary);
+  const hasActiveDelivery = session.deliveries.some((delivery) => delivery.status === DeliveryStatus.InProgress);
 
   return (
     <AppLayout
@@ -49,20 +48,26 @@ export function RouteSummaryPage() {
     >
       <RouteSummaryStats deliveries={session.deliveries} />
 
+      {reoptimizeStatus === 'loading' && (
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'center' }}>
+          <CircularProgress size={16} />
+          <Typography variant="caption" color="text.secondary">
+            Recalculando ruta...
+          </Typography>
+        </Stack>
+      )}
+
+      {reoptimizeStatus === 'error' && (
+        <Alert severity="warning">No se pudo recalcular la ruta. Los datos de distancia y tiempo pueden estar desactualizados.</Alert>
+      )}
+
       {routeSummary && <RouteOverviewCard deliveryCount={visibleDeliveries.length} routeSummary={routeSummary} />}
 
       {pendingCount > 0 && (
-        <Alert
-          severity="warning"
-          action={
-            <Button color="inherit" size="small" onClick={() => navigate(ROUTES.home)}>
-              Ir a Inicio
-            </Button>
-          }
-        >
+        <Alert severity="warning">
           {pendingCount === 1
-            ? '1 entrega no fue optimizada todavía.'
-            : `${pendingCount} entregas no fueron optimizadas todavía.`}
+            ? '1 entrega todavía no tiene ubicación. Abrila y probá "Ubicar nuevamente".'
+            : `${pendingCount} entregas todavía no tienen ubicación. Abrilas y probá "Ubicar nuevamente".`}
         </Alert>
       )}
 
@@ -72,8 +77,10 @@ export function RouteSummaryPage() {
             key={delivery.id}
             delivery={delivery}
             legInfo={legInfoByDeliveryId.get(delivery.id)}
+            hasActiveDelivery={hasActiveDelivery}
             onOpen={setSelectedDelivery}
             onNavigate={setNavigationTarget}
+            onStart={(target) => startDelivery(target.id)}
           />
         ))}
       </Stack>

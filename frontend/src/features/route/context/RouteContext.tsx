@@ -13,7 +13,7 @@ import {
   type RouteSession,
   type RouteSummaryInfo,
 } from '../types';
-import { RouteContext } from './routeContextObject';
+import { RouteContext, type ReoptimizeStatus } from './routeContextObject';
 import { createRouteSession, routeReducer } from './routeReducer';
 
 type DeliveryInput = Omit<Delivery, 'id' | 'createdAt' | 'status' | 'geocodingStatus'>;
@@ -30,9 +30,11 @@ export function RouteProvider({ children }: RouteProviderProps) {
   const [phase, setPhase] = useState<InitPhase>('checking');
   const [restorableSession, setRestorableSession] = useState<RouteSession | null>(null);
   // Ephemeral, no se persiste (ni localStorage ni backend): es el resultado de la última
-  // optimización, se recalcula cada vez que se toca "Optimizar ruta" — no es parte del dominio
-  // de la sesión (`RouteSession`/`Delivery` no cambian), solo datos para mostrar.
+  // optimización, se recalcula automáticamente cada vez que cambia algo relevante (nueva entrega,
+  // "Ubicar nuevamente") — no es parte del dominio de la sesión (`RouteSession`/`Delivery` no
+  // cambian), solo datos para mostrar.
   const [routeSummary, setRouteSummaryState] = useState<RouteSummaryInfo | null>(null);
+  const [reoptimizeStatus, setReoptimizeStatus] = useState<ReoptimizeStatus>('idle');
 
   useEffect(() => {
     let cancelled = false;
@@ -66,17 +68,16 @@ export function RouteProvider({ children }: RouteProviderProps) {
     }
   }, [session, phase, saveRoute]);
 
-  const addDelivery = useCallback((input: DeliveryInput) => {
-    dispatch({
-      type: 'ADD_DELIVERY',
-      payload: {
-        ...input,
-        id: crypto.randomUUID(),
-        createdAt: new Date().toISOString(),
-        status: DeliveryStatus.Pending,
-        geocodingStatus: GeocodingStatus.Pending,
-      },
-    });
+  const addDelivery = useCallback((input: DeliveryInput): Delivery => {
+    const delivery: Delivery = {
+      ...input,
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      status: DeliveryStatus.Pending,
+      geocodingStatus: GeocodingStatus.Pending,
+    };
+    dispatch({ type: 'ADD_DELIVERY', payload: delivery });
+    return delivery;
   }, []);
 
   const removeDelivery = useCallback((id: string) => {
@@ -113,13 +114,17 @@ export function RouteProvider({ children }: RouteProviderProps) {
     [],
   );
 
-  const setRouteSummary = useCallback((summary: OptimizeRouteSummary | undefined, hasCustomDestination: boolean) => {
-    setRouteSummaryState(summary ? { ...summary, hasCustomDestination } : null);
-  }, []);
+  const setRouteSummary = useCallback(
+    (summary: OptimizeRouteSummary | undefined, hasCustomDestination: boolean, customDestinationAddress?: DeliveryAddress) => {
+      setRouteSummaryState(summary ? { ...summary, hasCustomDestination, customDestinationAddress } : null);
+    },
+    [],
+  );
 
   const startNewRoute = useCallback(() => {
     dispatch({ type: 'START_NEW_ROUTE', payload: createRouteSession() });
     setRouteSummaryState(null);
+    setReoptimizeStatus('idle');
   }, []);
 
   const handleContinue = useCallback(() => {
@@ -149,6 +154,8 @@ export function RouteProvider({ children }: RouteProviderProps) {
       updateDeliveryGeocoding,
       routeSummary,
       setRouteSummary,
+      reoptimizeStatus,
+      setReoptimizeStatus,
       startNewRoute,
     }),
     [
@@ -163,6 +170,8 @@ export function RouteProvider({ children }: RouteProviderProps) {
       updateDeliveryGeocoding,
       routeSummary,
       setRouteSummary,
+      reoptimizeStatus,
+      setReoptimizeStatus,
       startNewRoute,
     ],
   );

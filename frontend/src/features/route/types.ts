@@ -60,6 +60,16 @@ export interface RouteSession {
   deliveries: Delivery[];
 }
 
+/**
+ * Una de varias ubicaciones empatadas para la misma dirección (misma calle/localidad/código
+ * postal, pero coordenadas distintas) — el backend no puede elegir una sola con confianza, así
+ * que se le ofrecen al chofer para que elija.
+ */
+export interface GeocodeCandidateOption {
+  coordinates: Coordinates;
+  label: string;
+}
+
 /** Un tramo del recorrido devuelto por OSRM — nunca se recalcula en el frontend. */
 export interface OptimizeRouteLeg {
   /** Metros. */
@@ -85,7 +95,12 @@ export interface OptimizeRouteSummary {
  * `hasCustomDestination` — si el chofer configuró una dirección final real al optimizar (en vez
  * de "terminar en mi ubicación actual") — para que la última entrega muestre la distancia a ese
  * destino en vez de "Última entrega". Es una decisión de UI, no viene de OSRM.
+ *
+ * `customDestinationAddress` guarda esa dirección (solo presente cuando `hasCustomDestination` es
+ * true) para poder recalcular la ruta automáticamente más adelante (nueva entrega agregada,
+ * "Ubicar nuevamente" resuelto) sin volver a preguntarle al chofer el destino cada vez.
  */
 export interface RouteSummaryInfo extends OptimizeRouteSummary {
   hasCustomDestination: boolean;
+  customDestinationAddress?: DeliveryAddress;
 }

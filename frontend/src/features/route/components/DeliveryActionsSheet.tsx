@@ -3,19 +3,28 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import EditIcon from '@mui/icons-material/Edit';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import NavigationIcon from '@mui/icons-material/Navigation';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { Alert, CircularProgress, Divider, List, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { BottomSheet } from '../../../shared/components';
 import { FAILURE_REASON_LABELS } from '../config/failureReasonConfig';
 import { GEOCODING_REVIEW_MESSAGES } from '../config/geocodingReviewMessages';
+import { useAutoReoptimize } from '../hooks/useAutoReoptimize';
 import { useRetryGeocoding } from '../hooks/useRetryGeocoding';
 import { useRoute } from '../hooks/useRoute';
-import { DeliveryStatus, GeocodingStatus, type Delivery, type DeliveryAddress, type FailureReasonCode } from '../types';
+import {
+  DeliveryStatus,
+  GeocodingStatus,
+  type Coordinates,
+  type Delivery,
+  type DeliveryAddress,
+  type FailureReasonCode,
+  type GeocodeCandidateOption,
+} from '../types';
 import { formatLastModified } from '../utils/formatLastModified';
 import { formatLocalityLine, formatStreetLine } from '../utils/formatDeliveryAddress';
 import { EditDeliveryAddressDialog } from './EditDeliveryAddressDialog';
 import { FailDeliveryDialog } from './FailDeliveryDialog';
+import { GeocodeOptionsDialog } from './GeocodeOptionsDialog';
 
 interface DeliveryActionsSheetProps {
   delivery: Delivery | null;
@@ -24,16 +33,19 @@ interface DeliveryActionsSheetProps {
 }
 
 export function DeliveryActionsSheet({ delivery, onClose, onNavigate }: DeliveryActionsSheetProps) {
-  const { startDelivery, completeDelivery, failDelivery, editDeliveryAddress, updateDeliveryGeocoding } = useRoute();
+  const { session, completeDelivery, failDelivery, editDeliveryAddress, updateDeliveryGeocoding } = useRoute();
   const [failingDeliveryId, setFailingDeliveryId] = useState<string | null>(null);
   const [editingDelivery, setEditingDelivery] = useState<Delivery | null>(null);
   const { status: retryStatus, retry: retryGeocoding } = useRetryGeocoding();
+  const { triggerAutoReoptimize } = useAutoReoptimize();
   const [staleGeocodingStatus, setStaleGeocodingStatus] = useState<GeocodingStatus | null>(null);
   const [retryFailureMessage, setRetryFailureMessage] = useState<string | null>(null);
+  const [geocodeOptions, setGeocodeOptions] = useState<GeocodeCandidateOption[] | null>(null);
 
   useEffect(() => {
     setStaleGeocodingStatus(null);
     setRetryFailureMessage(null);
+    setGeocodeOptions(null);
   }, [delivery?.id]);
 
   const handleFailConfirm = (failureReasonCode: FailureReasonCode, failureReasonDetail?: string) => {
@@ -50,6 +62,21 @@ export function DeliveryActionsSheet({ delivery, onClose, onNavigate }: Delivery
     setEditingDelivery(null);
   };
 
+  // Guarda la nueva ubicación de la entrega y, si quedó `Verified`, recalcula toda la ruta en
+  // segundo plano — hasta ahora esa entrega no formaba parte del recorrido optimizado (solo se
+  // rutean las `Verified`), así que sin esto las distancias/tiempos quedarían desactualizados o
+  // directamente sin la card de "próxima parada" para ella.
+  const applyGeocodingResolution = (target: Delivery, coordinates: Coordinates | undefined, geocodingStatus: GeocodingStatus) => {
+    updateDeliveryGeocoding(target.id, coordinates, geocodingStatus);
+
+    if (geocodingStatus === GeocodingStatus.Verified) {
+      const patchedDeliveries = session.deliveries.map((candidate) =>
+        candidate.id === target.id ? { ...candidate, coordinates, geocodingStatus } : candidate,
+      );
+      void triggerAutoReoptimize(patchedDeliveries);
+    }
+  };
+
   const handleRetryGeocoding = async () => {
     if (!delivery) {
       return;
@@ -64,7 +91,15 @@ export function DeliveryActionsSheet({ delivery, onClose, onNavigate }: Delivery
       return;
     }
 
-    updateDeliveryGeocoding(delivery.id, resolution.coordinates, resolution.geocodingStatus);
+    if (resolution.options && resolution.options.length > 1) {
+      // Varias ubicaciones empatadas (misma calle/localidad/CP, coordenadas distintas): no hay
+      // forma de elegir una sola con confianza, así que se le ofrecen al chofer en vez de
+      // guardar cualquiera de ellas.
+      setGeocodeOptions(resolution.options);
+      return;
+    }
+
+    applyGeocodingResolution(delivery, resolution.coordinates, resolution.geocodingStatus);
 
     if (resolution.geocodingStatus === GeocodingStatus.Verified) {
       onClose();
@@ -73,6 +108,16 @@ export function DeliveryActionsSheet({ delivery, onClose, onNavigate }: Delivery
       // si nada hubiera pasado, para que el chofer sepa que el reintento no alcanzó.
       setStaleGeocodingStatus(resolution.geocodingStatus);
     }
+  };
+
+  const handleSelectGeocodeOption = (option: GeocodeCandidateOption) => {
+    if (!delivery) {
+      return;
+    }
+
+    applyGeocodingResolution(delivery, option.coordinates, GeocodingStatus.Verified);
+    setGeocodeOptions(null);
+    onClose();
   };
 
   return (
@@ -139,21 +184,6 @@ export function DeliveryActionsSheet({ delivery, onClose, onNavigate }: Delivery
                 </ListItemButton>
               )}
 
-              {delivery.status === DeliveryStatus.Pending && (
-                <ListItemButton
-                  disableGutters
-                  onClick={() => {
-                    startDelivery(delivery.id);
-                    onClose();
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: 36 }}>
-                    <PlayArrowIcon />
-                  </ListItemIcon>
-                  <ListItemText primary="Comenzar entrega" />
-                </ListItemButton>
-              )}
-
               {delivery.status === DeliveryStatus.InProgress && (
                 <>
                   <ListItemButton
@@ -212,6 +242,8 @@ export function DeliveryActionsSheet({ delivery, onClose, onNavigate }: Delivery
       />
 
       <EditDeliveryAddressDialog delivery={editingDelivery} onClose={() => setEditingDelivery(null)} onSave={handleSaveAddress} />
+
+      <GeocodeOptionsDialog options={geocodeOptions} onSelect={handleSelectGeocodeOption} onClose={() => setGeocodeOptions(null)} />
     </>
   );
 }

@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../app/router/routes';
 import { CameraFeed } from '../../features/camera';
 import { useRoute } from '../../features/route';
+import { OptimizeRouteDialog, useOptimizeDeliveries } from '../../features/route-optimization';
 import { DeliveryReviewCard, ScannerPhase, useDeliveryCapture } from '../../features/scanner';
 import { AppLayout, GradientHero } from '../../shared/components';
 
@@ -24,6 +25,7 @@ export function ScanPage() {
     confirmDelivery,
   } = useDeliveryCapture();
   const { session } = useRoute();
+  const { isDialogOpen, openOptimizeDialog, closeOptimizeDialog, handleOptimized } = useOptimizeDeliveries();
 
   return (
     <AppLayout
@@ -91,8 +93,8 @@ export function ScanPage() {
           </Button>
 
           {phase === ScannerPhase.Capturing && session.deliveries.length > 0 && (
-            <Button variant="outlined" size="large" onClick={() => navigate(ROUTES.home)}>
-              Terminar de cargar
+            <Button variant="outlined" size="large" onClick={openOptimizeDialog}>
+              Terminar y optimizar
             </Button>
           )}
         </Stack>
@@ -110,6 +112,13 @@ export function ScanPage() {
       {phase === ScannerPhase.Reviewing && draft && (
         <DeliveryReviewCard value={draft} onChange={updateDraft} onSubmit={confirmDelivery} />
       )}
+
+      <OptimizeRouteDialog
+        open={isDialogOpen}
+        deliveries={session.deliveries}
+        onClose={closeOptimizeDialog}
+        onOptimized={handleOptimized}
+      />
     </AppLayout>
   );
 }

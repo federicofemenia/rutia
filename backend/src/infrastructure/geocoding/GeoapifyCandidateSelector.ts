@@ -1,6 +1,6 @@
 import type { Coordinates } from '../../domain/Coordinates.js';
 import type { DeliveryAddress } from '../../domain/DeliveryAddress.js';
-import type { GeocodeMatchedAddress, GeocodeResult } from '../../domain/Geocoder.js';
+import type { GeocodeCandidateOption, GeocodeMatchedAddress, GeocodeResult } from '../../domain/Geocoder.js';
 import { normalizeForComparison, normalizeLocalityName, normalizePostalCode, normalizeProvinceName } from '../../domain/normalizeAddress.js';
 
 export interface GeoapifyRank {
@@ -159,6 +159,31 @@ function buildMatchedAddress(result: GeoapifyResult): GeocodeMatchedAddress | un
   };
 }
 
+function coordinatesAreEqual(a: Coordinates, b: Coordinates): boolean {
+  return a.latitude === b.latitude && a.longitude === b.longitude;
+}
+
+/**
+ * De los candidatos empatados en el mejor score, se queda con uno por cada ubicación física
+ * distinta (mismas coordenadas exactas = mismo lugar, aunque Geoapify lo haya listado dos veces).
+ * El orden de `tiedAtBestScore` ya viene priorizado por `confidence`, así que se preserva.
+ */
+function dedupeByCoordinates(tiedAtBestScore: ResultEvaluation[]): ResultEvaluation[] {
+  const distinct: ResultEvaluation[] = [];
+
+  for (const candidate of tiedAtBestScore) {
+    if (!distinct.some((existing) => coordinatesAreEqual(existing.coordinates, candidate.coordinates))) {
+      distinct.push(candidate);
+    }
+  }
+
+  return distinct;
+}
+
+function buildOptionLabel(result: GeoapifyResult, coordinates: Coordinates): string {
+  return result.formatted ?? `${coordinates.latitude}, ${coordinates.longitude}`;
+}
+
 function logEvaluation(evaluation: ResultEvaluation): void {
   const {
     result,
@@ -239,16 +264,15 @@ export function selectBestGeoapifyResult(results: GeoapifyResult[], address: Del
   });
 
   const best = sorted[0];
-  const runnerUp = sorted[1];
 
-  // "Sin forma clara de elegir uno" solo cuando el segundo mejor empata en score Y apunta a una
-  // localidad distinta — si empatan pero coinciden en localidad, cualquiera de los dos sirve.
-  const genuineTie =
-    runnerUp !== undefined &&
-    runnerUp.score === best.score &&
-    best.bestLocality !== undefined &&
-    runnerUp.bestLocality !== undefined &&
-    normalizeLocalityName(best.bestLocality) !== normalizeLocalityName(runnerUp.bestLocality);
+  // Empate real: más de una ubicación física distinta con el mismo mejor score — sin importar si
+  // coinciden en localidad o no (antes solo se consideraba "sin forma clara de elegir" cuando la
+  // localidad difería; un caso real mostró que dos tramos de la misma calle, mismo partido, mismo
+  // código postal, pueden estar a kilómetros de distancia entre sí). Elegir uno automáticamente
+  // ahí es arriesgarse a mandar al chofer al lugar equivocado con toda confianza — se le ofrecen
+  // las opciones en vez de adivinar.
+  const distinctTiedCandidates = dedupeByCoordinates(sorted.filter((evaluation) => evaluation.score === best.score));
+  const genuineTie = distinctTiedCandidates.length > 1;
 
   const matchedAddress = buildMatchedAddress(best.result);
 
@@ -266,7 +290,7 @@ export function selectBestGeoapifyResult(results: GeoapifyResult[], address: Del
     reason = 'el resultado no tiene calle asociada, representa solo una zona aproximada';
   } else if (genuineTie) {
     status = 'ambiguous';
-    reason = 'hay varios resultados razonables (distinta localidad) sin forma clara de elegir uno';
+    reason = `hay ${distinctTiedCandidates.length} resultados empatados en todos los datos disponibles, en ubicaciones distintas — se ofrecen como opciones`;
   } else {
     status = 'verified';
     reason = best.hasHouseNumber
@@ -284,5 +308,12 @@ export function selectBestGeoapifyResult(results: GeoapifyResult[], address: Del
     return { status: 'verified', coordinates: best.coordinates, matchedAddress };
   }
 
-  return { status: 'ambiguous', coordinates: best.coordinates, matchedAddress, candidates: provinceEligible.length };
+  const options: GeocodeCandidateOption[] | undefined = genuineTie
+    ? distinctTiedCandidates.map((candidate) => ({
+        coordinates: candidate.coordinates,
+        label: buildOptionLabel(candidate.result, candidate.coordinates),
+      }))
+    : undefined;
+
+  return { status: 'ambiguous', coordinates: best.coordinates, matchedAddress, candidates: provinceEligible.length, options };
 }

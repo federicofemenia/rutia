@@ -1,5 +1,5 @@
 import { authFetch } from '../../auth';
-import type { Coordinates, Delivery, DeliveryAddress, OptimizeRouteSummary } from '../../route';
+import type { Coordinates, Delivery, DeliveryAddress, OptimizeRouteSummary } from '../types';
 
 export interface OptimizeRouteParams {
   deliveries: Delivery[];

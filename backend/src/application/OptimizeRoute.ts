@@ -100,8 +100,13 @@ export class OptimizeRoute {
         continue;
       }
 
+      // `resolution.options` (ubicaciones empatadas) es propio del reintento manual e interactivo
+      // de una sola entrega — acá, en un lote automático, no hay forma de mostrarle un diálogo al
+      // chofer por cada una, así que se descarta y la entrega queda `Ambiguous` como cualquier
+      // otra que necesite revisión (ver el botón "Ubicar nuevamente"). `Delivery` tampoco tiene
+      // campo `options`, para no filtrar este dato transitorio a la sesión persistida.
       const resolution = await geocode(delivery.address);
-      resolvedDeliveries.push({ ...delivery, ...resolution });
+      resolvedDeliveries.push({ ...delivery, coordinates: resolution.coordinates, geocodingStatus: resolution.geocodingStatus });
     }
 
     const verifiedDeliveries = resolvedDeliveries.filter(
