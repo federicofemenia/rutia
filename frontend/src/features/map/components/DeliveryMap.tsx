@@ -136,7 +136,7 @@ export function DeliveryMap({ deliveries, currentLocation, routeSummary, onSelec
         defaultZoom={MAP_CONFIG.defaultZoom}
         gestureHandling="greedy"
         disableDefaultUI={false}
-        style={{ flex: 1, width: '100%', minHeight: '55dvh' }}
+        style={{ flex: 1, width: '100%', height: '55dvh', minHeight: '55dvh' }}
       >
         <MapBoundsController positions={positions} />
         <MapResizeController />
