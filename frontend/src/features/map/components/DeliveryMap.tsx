@@ -21,7 +21,11 @@ import {
 import { MAP_CONFIG } from '../config/mapConfig';
 import { hasCoordinates } from '../utils/hasCoordinates';
 import { MapBoundsController } from './MapBoundsController';
-import { MapResizeController } from './MapResizeController';
+// TEMPORAL, ver features/map/debug/mapDiagnosticsStore.ts — MapResizeController se saca del árbol
+// a pedido explícito mientras se diagnostica (usa ResizeObserver, una de las APIs bajo sospecha).
+// import { MapResizeController } from './MapResizeController';
+import { MapDiagnosticsController, type MapInstanceInfo } from './MapDiagnosticsController';
+import { MapDiagnosticsPanel } from './MapDiagnosticsPanel';
 
 interface DeliveryMapProps {
   deliveries: Delivery[];
@@ -95,6 +99,7 @@ export function DeliveryMap({ deliveries, currentLocation, routeSummary, onSelec
   const theme = useTheme();
   const loadingStatus = useApiLoadingStatus();
   const [selectedDeliveryId, setSelectedDeliveryId] = useState<string | null>(null);
+  const [mapInstanceInfo, setMapInstanceInfo] = useState<MapInstanceInfo | null>(null);
 
   const markers = useMemo(
     () =>
@@ -130,6 +135,8 @@ export function DeliveryMap({ deliveries, currentLocation, routeSummary, onSelec
         </Alert>
       )}
 
+      <MapDiagnosticsPanel loadingStatus={loadingStatus} mapInstanceInfo={mapInstanceInfo} />
+
       <Map
         mapId={MAP_CONFIG.mapId}
         defaultCenter={{ lat: MAP_CONFIG.defaultCenter.latitude, lng: MAP_CONFIG.defaultCenter.longitude }}
@@ -139,7 +146,7 @@ export function DeliveryMap({ deliveries, currentLocation, routeSummary, onSelec
         style={{ flex: 1, width: '100%', height: '55dvh', minHeight: '55dvh' }}
       >
         <MapBoundsController positions={positions} />
-        <MapResizeController />
+        <MapDiagnosticsController onUpdate={setMapInstanceInfo} />
 
         {routeSummary?.encodedPolyline && (
           <Polyline
