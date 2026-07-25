@@ -21,11 +21,6 @@ import {
 import { MAP_CONFIG } from '../config/mapConfig';
 import { hasCoordinates } from '../utils/hasCoordinates';
 import { MapBoundsController } from './MapBoundsController';
-// TEMPORAL, ver features/map/debug/mapDiagnosticsStore.ts — MapResizeController se saca del árbol
-// a pedido explícito mientras se diagnostica (usa ResizeObserver, una de las APIs bajo sospecha).
-// import { MapResizeController } from './MapResizeController';
-import { MapDiagnosticsController, type MapInstanceInfo } from './MapDiagnosticsController';
-import { MapDiagnosticsPanel } from './MapDiagnosticsPanel';
 
 interface DeliveryMapProps {
   deliveries: Delivery[];
@@ -99,7 +94,6 @@ export function DeliveryMap({ deliveries, currentLocation, routeSummary, onSelec
   const theme = useTheme();
   const loadingStatus = useApiLoadingStatus();
   const [selectedDeliveryId, setSelectedDeliveryId] = useState<string | null>(null);
-  const [mapInstanceInfo, setMapInstanceInfo] = useState<MapInstanceInfo | null>(null);
 
   const markers = useMemo(
     () =>
@@ -121,21 +115,11 @@ export function DeliveryMap({ deliveries, currentLocation, routeSummary, onSelec
 
   return (
     <>
-      {/* Diagnóstico temporal: el mapa no se veía en mobile en producción y las dos causas más
-       *  comunes (contenedor en 0px, script bloqueado por CSP) ya se descartaron/corrigieron.
-       *  Este banner expone el estado real de carga de la API para saber si Google está
-       *  rechazando la key (restricción de referrer, API no habilitada, billing) en vez de
-       *  seguir adivinando — sacar una vez encontrada la causa real. */}
       {(loadingStatus === APILoadingStatus.FAILED || loadingStatus === APILoadingStatus.AUTH_FAILURE) && (
         <Alert severity="error" sx={{ flexShrink: 0 }}>
-          {loadingStatus === APILoadingStatus.AUTH_FAILURE
-            ? 'Google rechazó la clave del mapa (restricción de referrer, API no habilitada, o billing).'
-            : 'No se pudo cargar el script de Google Maps.'}{' '}
-          [diag: {loadingStatus}]
+          No se pudo cargar el mapa. Probá de nuevo más tarde.
         </Alert>
       )}
-
-      <MapDiagnosticsPanel loadingStatus={loadingStatus} mapInstanceInfo={mapInstanceInfo} />
 
       <Map
         mapId={MAP_CONFIG.mapId}
@@ -146,7 +130,6 @@ export function DeliveryMap({ deliveries, currentLocation, routeSummary, onSelec
         style={{ flex: 1, width: '100%', height: '55dvh', minHeight: '55dvh' }}
       >
         <MapBoundsController positions={positions} />
-        <MapDiagnosticsController onUpdate={setMapInstanceInfo} />
 
         {routeSummary?.encodedPolyline && (
           <Polyline
