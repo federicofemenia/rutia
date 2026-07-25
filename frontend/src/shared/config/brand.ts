@@ -7,7 +7,7 @@ import logoLight from '../assets/logo-light.svg';
 export const BRAND = {
   name: 'RUTIA',
   tagline: 'Inteligencia para repartir',
-  version: '1.2.1',
+  version: '1.2.2',
   assets: {
     full: logoFull,
     light: logoLight,

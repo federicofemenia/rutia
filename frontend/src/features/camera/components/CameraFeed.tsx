@@ -11,6 +11,8 @@ interface CameraFeedProps {
    *  el <video> mantiene su `srcObject` — si se desmontara, al volver a mostrarlo quedaría en
    *  blanco, porque el stream no se reasigna solo. */
   hidden?: boolean;
+  /** true mientras se extrae la dirección de la última foto capturada. */
+  processing?: boolean;
 }
 
 const CORNER_SIZE = 32;
@@ -41,7 +43,7 @@ function CornerBracket({ vertical, horizontal }: CornerBracketProps) {
   );
 }
 
-export function CameraFeed({ videoRef, status, errorMessage, hidden = false }: CameraFeedProps) {
+export function CameraFeed({ videoRef, status, errorMessage, hidden = false, processing = false }: CameraFeedProps) {
   return (
     <Stack
       spacing={2}
@@ -82,7 +84,7 @@ export function CameraFeed({ videoRef, status, errorMessage, hidden = false }: C
           <>
             <Chip
               icon={<PhotoCameraIcon fontSize="small" sx={{ color: '#FFFFFF !important' }} />}
-              label="Cámara activa"
+              label={processing ? 'Analizando...' : 'Cámara activa'}
               size="small"
               sx={{ position: 'absolute', top: 12, bgcolor: 'rgba(15, 23, 42, 0.75)', color: '#FFFFFF' }}
             />
@@ -93,13 +95,28 @@ export function CameraFeed({ videoRef, status, errorMessage, hidden = false }: C
               <CornerBracket vertical="bottom" horizontal="left" />
               <CornerBracket vertical="bottom" horizontal="right" />
             </Box>
+
+            {processing && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  bgcolor: 'rgba(15, 23, 42, 0.45)',
+                }}
+              >
+                <CircularProgress sx={{ color: 'common.white' }} />
+              </Box>
+            )}
           </>
         )}
       </Box>
 
       {status === 'streaming' && (
-        <Typography variant="caption" color="text.secondary">
-          Acercá la cámara a la dirección y encuadrala dentro del marco
+        <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
+          {processing ? 'Extrayendo dirección...' : 'Encuadrá la etiqueta dentro del marco'}
         </Typography>
       )}
 

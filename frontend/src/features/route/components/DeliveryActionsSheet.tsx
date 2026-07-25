@@ -7,7 +7,6 @@ import { useState } from 'react';
 import type { PlaceSelection } from '../../places';
 import { BottomSheet } from '../../../shared/components';
 import { FAILURE_REASON_LABELS } from '../config/failureReasonConfig';
-import { useAutoReoptimize } from '../hooks/useAutoReoptimize';
 import { useRoute } from '../hooks/useRoute';
 import { DeliveryStatus, type Delivery, type FailureReasonCode } from '../types';
 import { formatLastModified } from '../utils/formatLastModified';
@@ -22,8 +21,7 @@ interface DeliveryActionsSheetProps {
 }
 
 export function DeliveryActionsSheet({ delivery, onClose, onNavigate }: DeliveryActionsSheetProps) {
-  const { session, completeDelivery, failDelivery, editDeliveryAddress } = useRoute();
-  const { triggerAutoReoptimize } = useAutoReoptimize();
+  const { completeDelivery, failDelivery, editDeliveryAddress } = useRoute();
   const [failingDeliveryId, setFailingDeliveryId] = useState<string | null>(null);
   const [editingDelivery, setEditingDelivery] = useState<Delivery | null>(null);
 
@@ -34,19 +32,14 @@ export function DeliveryActionsSheet({ delivery, onClose, onNavigate }: Delivery
     setFailingDeliveryId(null);
   };
 
-  // La nueva dirección ya viene resuelta a coordenadas por Places — a diferencia del formulario
-  // manual que reemplaza, no hay geocodificación pendiente que esperar: se recalcula la ruta en
-  // segundo plano de una, igual que cuando se agrega una entrega nueva.
+  // La nueva dirección ya viene resuelta a coordenadas por Places. No se recalcula la ruta acá —
+  // el chofer decide cuándo optimizar de nuevo con el botón "Optimizar ruta" en Mi ruta.
   const handleSaveAddress = ({ address, coordinates }: PlaceSelection) => {
     if (!editingDelivery) {
       return;
     }
 
     editDeliveryAddress(editingDelivery.id, address, coordinates);
-    const patchedDeliveries = session.deliveries.map((candidate) =>
-      candidate.id === editingDelivery.id ? { ...candidate, address, coordinates } : candidate,
-    );
-    void triggerAutoReoptimize(patchedDeliveries);
     setEditingDelivery(null);
   };
 

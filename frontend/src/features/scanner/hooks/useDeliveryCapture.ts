@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { type CameraStatus, useCamera } from '../../camera';
 import { useExtractAddress } from '../../address-extraction';
-import type { PlaceSelection } from '../../places';
-import { useAutoReoptimize, useRoute } from '../../route';
+import { type PlaceSelection, usePlacesAutocomplete } from '../../places';
+import { useRoute } from '../../route';
 import { type DeliveryDraft, ScannerPhase } from '../types';
 
 interface UseDeliveryCaptureResult {
@@ -27,8 +27,8 @@ export function useDeliveryCapture(): UseDeliveryCaptureResult {
     capturePhoto,
   } = useCamera();
   const { extract } = useExtractAddress();
-  const { session, addDelivery, routeSummary } = useRoute();
-  const { triggerAutoReoptimize } = useAutoReoptimize();
+  const { search, selectSuggestion } = usePlacesAutocomplete();
+  const { addDelivery } = useRoute();
 
   const [phase, setPhase] = useState<ScannerPhase>(ScannerPhase.Capturing);
   const [draft, setDraft] = useState<DeliveryDraft | null>(null);
@@ -40,6 +40,17 @@ export function useDeliveryCapture(): UseDeliveryCaptureResult {
       requestAccess();
     }
   }, [cameraStatus, requestAccess]);
+
+  const addDeliveryFromSelection = useCallback(
+    (selection: PlaceSelection) => {
+      addDelivery({ address: selection.address, coordinates: selection.coordinates });
+      setDraft(null);
+      setErrorMessage(null);
+      capturedPhotoRef.current = null;
+      setPhase(ScannerPhase.Capturing);
+    },
+    [addDelivery],
+  );
 
   const runExtraction = useCallback(
     async (photo: string) => {
@@ -54,10 +65,27 @@ export function useDeliveryCapture(): UseDeliveryCaptureResult {
         return;
       }
 
+      // Auto-confirmación: si Gemini está seguro de lo que leyó Y Places encuentra una única
+      // coincidencia sin ambigüedad para esa búsqueda, se agrega la entrega directo — sin pasarle
+      // la revisión manual al chofer. Si Gemini no está seguro, o Places no encuentra nada, o
+      // encuentra varias posibles, se cae al flujo normal (mostrar el picker de Places).
+      if (!result.needsUserConfirmation && result.query.trim()) {
+        const suggestions = await search(result.query);
+
+        if (suggestions.length === 1) {
+          const selection = await selectSuggestion(suggestions[0]);
+
+          if (selection) {
+            addDeliveryFromSelection(selection);
+            return;
+          }
+        }
+      }
+
       setDraft(result);
       setPhase(ScannerPhase.Reviewing);
     },
-    [extract],
+    [extract, search, selectSuggestion, addDeliveryFromSelection],
   );
 
   const captureAndExtract = useCallback(async () => {
@@ -84,25 +112,6 @@ export function useDeliveryCapture(): UseDeliveryCaptureResult {
     await runExtraction(photo);
   }, [captureAndExtract, runExtraction]);
 
-  const confirmDelivery = useCallback(
-    (selection: PlaceSelection) => {
-      const newDelivery = addDelivery({ address: selection.address, coordinates: selection.coordinates });
-      setDraft(null);
-      setErrorMessage(null);
-      capturedPhotoRef.current = null;
-      setPhase(ScannerPhase.Capturing);
-
-      // Si la ruta ya se había optimizado antes, esta entrega nueva todavía no participa del orden
-      // ni de las distancias — se recalcula sola, sin interrumpir el escaneo. Si es la primera vez
-      // (routeSummary null), no hay nada que recalcular todavía: eso lo dispara "Terminar y
-      // optimizar" al final del lote.
-      if (routeSummary) {
-        void triggerAutoReoptimize([...session.deliveries, newDelivery]);
-      }
-    },
-    [addDelivery, routeSummary, triggerAutoReoptimize, session.deliveries],
-  );
-
   return {
     phase,
     videoRef,
@@ -113,6 +122,6 @@ export function useDeliveryCapture(): UseDeliveryCaptureResult {
     draft,
     captureAndExtract,
     retry,
-    confirmDelivery,
+    confirmDelivery: addDeliveryFromSelection,
   };
 }

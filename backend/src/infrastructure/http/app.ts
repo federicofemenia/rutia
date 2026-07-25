@@ -50,12 +50,16 @@ export async function createApp(): Promise<CreatedApp> {
   app.use(
   cors({
     origin(origin, callback) {
-      if (
-        !origin ||
-        origin === 'http://localhost:5173' ||
-        origin === 'https://localhost:5173' ||
-        origin.endsWith('.vercel.app')
-      ) {
+      // Además de localhost, se permite cualquier IP de red privada (192.168.x.x, 10.x.x.x,
+      // 172.16-31.x.x) en el puerto de Vite — necesario para probar la PWA desde el celular en la
+      // misma red durante desarrollo (cámara/geolocalización no siempre funcionan bien vía
+      // localhost tunneleado). No aplica en producción: ninguna IP privada llega a Render/Vercel.
+      const isLocalNetworkDevOrigin =
+        !!origin && /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}):5173$/.test(
+          origin,
+        );
+
+      if (!origin || isLocalNetworkDevOrigin || origin.endsWith('.vercel.app')) {
         callback(null, true);
         return;
       }

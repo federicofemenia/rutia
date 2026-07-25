@@ -12,8 +12,6 @@ import type {
 
 type DeliveryInput = Omit<Delivery, 'id' | 'createdAt' | 'status' | 'geocodingStatus'>;
 
-export type ReoptimizeStatus = 'idle' | 'loading' | 'error';
-
 export interface RouteContextValue {
   session: RouteSession;
   /** Devuelve la entrega creada (con su id/status finales) para que quien llama pueda usarla sin esperar el re-render. */
@@ -31,9 +29,6 @@ export interface RouteContextValue {
     hasCustomDestination: boolean,
     customDestination?: CustomDestination,
   ) => void;
-  /** Estado del recálculo automático en segundo plano (nueva entrega, "Ubicar nuevamente") — para mostrar feedback sin bloquear la UI. */
-  reoptimizeStatus: ReoptimizeStatus;
-  setReoptimizeStatus: (status: ReoptimizeStatus) => void;
   startNewRoute: () => void;
 }
 

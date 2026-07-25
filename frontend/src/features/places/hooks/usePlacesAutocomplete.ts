@@ -14,8 +14,10 @@ interface UsePlacesAutocompleteResult {
   /** `false` mientras `<APIProvider>` todavía está cargando el script de Google Maps — `search`
    *  no hace nada mientras tanto (ver por qué en `PlacesAutocompleteInput`). */
   isReady: boolean;
-  /** Busca sugerencias para `input`. Reusa el mismo session token entre búsquedas sucesivas. */
-  search: (input: string) => Promise<void>;
+  /** Busca sugerencias para `input` (y las devuelve, además de reflejarlas en `suggestions`, para
+   *  callers que necesitan el resultado inmediato sin esperar un re-render). Reusa el mismo
+   *  session token entre búsquedas sucesivas. */
+  search: (input: string) => Promise<PlaceSuggestion[]>;
   /** Pide Place Details de la sugerencia elegida y arma un `PlaceSelection` resuelto. Descarta el
    *  session token después (uno por búsqueda, como pide la facturación por sesión de Google). */
   selectSuggestion: (suggestion: PlaceSuggestion) => Promise<PlaceSelection | null>;
@@ -44,10 +46,10 @@ export function usePlacesAutocomplete(): UsePlacesAutocompleteResult {
   }, [placesLibrary]);
 
   const search = useCallback(
-    async (input: string) => {
+    async (input: string): Promise<PlaceSuggestion[]> => {
       if (!placesLibrary || input.trim().length === 0) {
         setSuggestions([]);
-        return;
+        return [];
       }
 
       setStatus('loading');
@@ -59,15 +61,17 @@ export function usePlacesAutocomplete(): UsePlacesAutocompleteResult {
           includedRegionCodes: ['ar'],
         });
 
-        setSuggestions(
-          results
-            .filter((result) => result.placePrediction !== null)
-            .map((result) => ({ text: result.placePrediction!.text.text, prediction: result.placePrediction! })),
-        );
+        const mapped = results
+          .filter((result) => result.placePrediction !== null)
+          .map((result) => ({ text: result.placePrediction!.text.text, prediction: result.placePrediction! }));
+
+        setSuggestions(mapped);
         setStatus('idle');
+        return mapped;
       } catch {
         setSuggestions([]);
         setStatus('error');
+        return [];
       }
     },
     [placesLibrary, getOrCreateSessionToken],

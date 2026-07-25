@@ -17,10 +17,11 @@ interface UseOptimizeDeliveriesResult {
 }
 
 /**
- * Controla la primera optimización explícita de la ruta (la única vez que se le pregunta al
- * chofer por su destino) — guarda el resultado y el destino elegido, y navega a la lista. Los
- * recálculos posteriores (nueva entrega, entrega eliminada) ya no pasan por acá, ver
- * `useAutoReoptimize`.
+ * Controla el diálogo de optimización — se le pregunta al chofer su destino cada vez, sin
+ * recordar la respuesta anterior. Se usa tanto para la primera optimización (botón "Optimizar
+ * ruta" en Mi ruta, con la lista todavía en orden de carga) como para cualquier re-optimización
+ * posterior: no hay recálculo automático en segundo plano, agregar/editar/borrar una entrega no
+ * dispara nada solo, el chofer decide cuándo optimizar tocando el botón de nuevo.
  */
 export function useOptimizeDeliveries(): UseOptimizeDeliveriesResult {
   const navigate = useNavigate();

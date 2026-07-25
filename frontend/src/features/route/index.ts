@@ -6,8 +6,6 @@ export { RouteSummaryStats } from './components/RouteSummaryStats';
 export { ARGENTINE_PROVINCES, isArgentineProvince, type ArgentineProvince } from './config/argentineProvinces';
 export { DELIVERY_STATUS_CONFIG } from './config/deliveryStatusConfig';
 export { RouteProvider } from './context/RouteContext';
-export type { ReoptimizeStatus } from './context/routeContextObject';
-export { useAutoReoptimize } from './hooks/useAutoReoptimize';
 export { useOptimizeRoute } from './hooks/useOptimizeRoute';
 export { useRoute } from './hooks/useRoute';
 export type { OptimizeRouteParams, OptimizeRouteResult, OptimizeRouteStats } from './api/optimizeRoute';
@@ -27,5 +25,6 @@ export { formatFullAddress, formatLocalityLine, formatStreetLine, hasStructuredA
 export { formatLastModified } from './utils/formatLastModified';
 export { formatDistance, formatDuration } from './utils/formatRouteMetrics';
 export { getVisibleDeliveries } from './utils/getVisibleDeliveries';
+export { isRouteFullyOptimized } from './utils/isRouteFullyOptimized';
 export { selectNextDelivery } from './utils/selectNextDelivery';
 export { summarizeDeliveries } from './utils/summarizeDeliveries';

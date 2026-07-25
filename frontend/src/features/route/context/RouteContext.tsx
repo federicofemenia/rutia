@@ -14,7 +14,7 @@ import {
   type RouteSession,
   type RouteSummaryInfo,
 } from '../types';
-import { RouteContext, type ReoptimizeStatus } from './routeContextObject';
+import { RouteContext } from './routeContextObject';
 import { createRouteSession, routeReducer } from './routeReducer';
 
 type DeliveryInput = Omit<Delivery, 'id' | 'createdAt' | 'status' | 'geocodingStatus'>;
@@ -30,12 +30,11 @@ export function RouteProvider({ children }: RouteProviderProps) {
 
   const [phase, setPhase] = useState<InitPhase>('checking');
   const [restorableSession, setRestorableSession] = useState<RouteSession | null>(null);
-  // Ephemeral, no se persiste (ni localStorage ni backend): es el resultado de la última
-  // optimización, se recalcula automáticamente cada vez que cambia algo relevante (nueva entrega,
-  // "Ubicar nuevamente") — no es parte del dominio de la sesión (`RouteSession`/`Delivery` no
-  // cambian), solo datos para mostrar.
+  // Ephemeral, no se persiste (ni localStorage ni backend): es el resultado de la última vez que
+  // el chofer tocó "Optimizar ruta" — no es parte del dominio de la sesión (`RouteSession`/
+  // `Delivery` no cambian), solo datos para mostrar. No se recalcula solo: agregar, editar o
+  // borrar una entrega no lo toca, el chofer decide cuándo volver a optimizar.
   const [routeSummary, setRouteSummaryState] = useState<RouteSummaryInfo | null>(null);
-  const [reoptimizeStatus, setReoptimizeStatus] = useState<ReoptimizeStatus>('idle');
 
   useEffect(() => {
     let cancelled = false;
@@ -120,7 +119,6 @@ export function RouteProvider({ children }: RouteProviderProps) {
   const startNewRoute = useCallback(() => {
     dispatch({ type: 'START_NEW_ROUTE', payload: createRouteSession() });
     setRouteSummaryState(null);
-    setReoptimizeStatus('idle');
   }, []);
 
   const handleContinue = useCallback(() => {
@@ -149,8 +147,6 @@ export function RouteProvider({ children }: RouteProviderProps) {
       editDeliveryAddress,
       routeSummary,
       setRouteSummary,
-      reoptimizeStatus,
-      setReoptimizeStatus,
       startNewRoute,
     }),
     [
@@ -164,8 +160,6 @@ export function RouteProvider({ children }: RouteProviderProps) {
       editDeliveryAddress,
       routeSummary,
       setRouteSummary,
-      reoptimizeStatus,
-      setReoptimizeStatus,
       startNewRoute,
     ],
   );

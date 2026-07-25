@@ -2,13 +2,15 @@ import LocationOffIcon from '@mui/icons-material/LocationOff';
 import MyLocationIcon from '@mui/icons-material/MyLocation';
 import { Alert, Box, CircularProgress, Fab, Stack, Typography } from '@mui/material';
 import { useState } from 'react';
+import { useAuth } from '../../features/auth';
 import { useCurrentLocation } from '../../features/geolocation';
 import { DeliveryMap, hasCoordinates } from '../../features/map';
 import { NavigationDialog, type NavigationDestination } from '../../features/navigation';
 import { DeliveryActionsSheet, formatFullAddress, type Delivery, useRoute } from '../../features/route';
-import { AppLayout } from '../../shared/components';
+import { AppBrandHeader, AppLayout } from '../../shared/components';
 
 export function MapPage() {
+  const { logout } = useAuth();
   const { session, routeSummary } = useRoute();
   const missingCoordinatesCount = session.deliveries.filter((delivery) => !hasCoordinates(delivery)).length;
   const { status, coordinates, errorMessage, requestLocation } = useCurrentLocation();
@@ -20,7 +22,11 @@ export function MapPage() {
     : null;
 
   return (
-    <AppLayout title="Mapa">
+    <AppLayout title="Mapa" header={<AppBrandHeader onLogout={logout} />}>
+      <Typography component="h1" variant="h5" sx={{ fontWeight: 800 }}>
+        Mapa
+      </Typography>
+
       {missingCoordinatesCount > 0 && (
         <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
           <LocationOffIcon fontSize="small" color="action" />

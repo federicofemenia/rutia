@@ -1,13 +1,12 @@
 import Inventory2Icon from '@mui/icons-material/Inventory2';
-import LogoutIcon from '@mui/icons-material/Logout';
 import PhotoCameraOutlinedIcon from '@mui/icons-material/PhotoCameraOutlined';
-import { Avatar, Box, Button, Card, CardContent, Chip, IconButton, LinearProgress, Stack, Tooltip, Typography } from '@mui/material';
+import { Avatar, Box, Button, Card, CardContent, Chip, LinearProgress, Stack, Typography } from '@mui/material';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../app/router/routes';
 import { useAuth, UserRole } from '../../features/auth';
 import { DeliveryStatus, summarizeDeliveries, useRoute } from '../../features/route';
-import { AppLayout, BrandLogo, GradientHero, IconBadge, StatCard } from '../../shared/components';
+import { AppBrandHeader, AppLayout, IconBadge, StatCard } from '../../shared/components';
 import { BRAND } from '../../shared/config/brand';
 import { TrackDriverDialog } from './components/TrackDriverDialog';
 
@@ -46,22 +45,7 @@ export function HomePage() {
   const progressPercent = total > 0 ? Math.round((delivered / total) * 100) : 0;
 
   return (
-    <AppLayout
-      title="Inicio"
-      header={
-        <GradientHero>
-          <Stack direction="row" sx={{ alignItems: 'center' }}>
-            <BrandLogo size="small" tone="dark" />
-            <Box sx={{ flexGrow: 1 }} />
-            <Tooltip title="Cerrar sesión">
-              <IconButton onClick={logout} sx={{ color: 'inherit', bgcolor: 'rgba(255,255,255,0.15)' }}>
-                <LogoutIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          </Stack>
-        </GradientHero>
-      }
-    >
+    <AppLayout title="Inicio" header={<AppBrandHeader onLogout={logout} />}>
       {user && (
         <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
           <Avatar sx={{ bgcolor: 'primary.main', fontWeight: 700 }}>{getInitials(user.name)}</Avatar>
@@ -143,7 +127,7 @@ export function HomePage() {
         <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <IconBadge icon={<PhotoCameraOutlinedIcon fontSize="small" />} color="success" />
           <Box sx={{ flexGrow: 1 }}>
-            <Typography sx={{ fontWeight: 700 }}>Escanear etiqueta</Typography>
+            <Typography sx={{ fontWeight: 700 }}>Agregar dirección</Typography>
             <Typography variant="caption" sx={{ opacity: 0.7 }}>
               Capturar dirección del paquete
             </Typography>

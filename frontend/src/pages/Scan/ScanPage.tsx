@@ -1,16 +1,12 @@
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import Inventory2Icon from '@mui/icons-material/Inventory2';
-import { Alert, Box, Button, IconButton, Stack, Typography } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
-import { ROUTES } from '../../app/router/routes';
+import { Alert, Button, Stack, Typography } from '@mui/material';
+import { useAuth } from '../../features/auth';
 import { CameraFeed } from '../../features/camera';
 import { useRoute } from '../../features/route';
-import { OptimizeRouteDialog, useOptimizeDeliveries } from '../../features/route-optimization';
 import { DeliveryReviewCard, ScannerPhase, useDeliveryCapture } from '../../features/scanner';
-import { AppLayout, GradientHero } from '../../shared/components';
+import { AppBrandHeader, AppLayout } from '../../shared/components';
 
 export function ScanPage() {
-  const navigate = useNavigate();
+  const { logout } = useAuth();
   const {
     phase,
     videoRef,
@@ -24,46 +20,39 @@ export function ScanPage() {
     confirmDelivery,
   } = useDeliveryCapture();
   const { session } = useRoute();
-  const { isDialogOpen, openOptimizeDialog, closeOptimizeDialog, handleOptimized } = useOptimizeDeliveries();
+  const deliveryCount = session.deliveries.length;
 
   return (
-    <AppLayout
-      title="Escanear"
-      header={
-        <GradientHero>
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-            <IconButton
-              aria-label="Volver a Inicio"
-              onClick={() => navigate(ROUTES.home)}
-              sx={{ color: 'inherit', bgcolor: 'rgba(255,255,255,0.15)' }}
-            >
-              <ArrowBackIcon />
-            </IconButton>
-            <Box>
-              <Typography component="h1" variant="h5" sx={{ fontWeight: 800 }}>
-                Escanear etiqueta
-              </Typography>
-              <Typography variant="body2" sx={{ opacity: 0.85 }}>
-                Centrá la etiqueta dentro del recuadro
-              </Typography>
-            </Box>
-          </Stack>
-        </GradientHero>
-      }
-    >
-      <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center', justifyContent: 'center' }}>
-        <Inventory2Icon fontSize="small" color="action" />
-        <Typography variant="body2" color="text.secondary">
-          {session.deliveries.length} entregas cargadas
-        </Typography>
-      </Stack>
-
+    <AppLayout title="Escanear" header={<AppBrandHeader onLogout={logout} />}>
       <CameraFeed
         videoRef={videoRef}
         status={cameraStatus}
         errorMessage={cameraErrorMessage}
         hidden={phase === ScannerPhase.Reviewing}
+        processing={phase === ScannerPhase.Extracting}
       />
+
+      <Stack spacing={0}>
+        <Typography
+          key={deliveryCount}
+          variant="h2"
+          sx={{
+            fontWeight: 900,
+            textAlign: 'center',
+            color: 'primary.main',
+            animation: 'scanner-counter-pulse 0.4s ease-out',
+            '@keyframes scanner-counter-pulse': {
+              '0%': { transform: 'scale(1.25)', opacity: 0.6 },
+              '100%': { transform: 'scale(1)', opacity: 1 },
+            },
+          }}
+        >
+          {deliveryCount}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
+          {deliveryCount === 1 ? 'entrega cargada' : 'entregas cargadas'}
+        </Typography>
+      </Stack>
 
       {cameraStatus === 'error' && (
         <Button variant="contained" onClick={requestCameraAccess}>
@@ -71,32 +60,24 @@ export function ScanPage() {
         </Button>
       )}
 
-      {(phase === ScannerPhase.Capturing || phase === ScannerPhase.Extracting) && cameraStatus === 'streaming' && (
-        <Stack spacing={1}>
-          <Button
-            variant="contained"
-            size="large"
-            onClick={captureAndExtract}
-            loading={phase === ScannerPhase.Extracting}
-            loadingPosition="start"
-            sx={{
-              borderRadius: 999,
-              py: 1,
-              fontWeight: 700,
-              letterSpacing: 1,
-              textTransform: 'uppercase',
-              boxShadow: '0 12px 24px -8px rgba(30, 58, 138, 0.5)',
-            }}
-          >
-            {phase === ScannerPhase.Extracting ? 'Extrayendo dirección...' : 'Capturar imagen'}
-          </Button>
-
-          {phase === ScannerPhase.Capturing && session.deliveries.length > 0 && (
-            <Button variant="outlined" size="large" onClick={openOptimizeDialog}>
-              Terminar y optimizar
-            </Button>
-          )}
-        </Stack>
+      {phase !== ScannerPhase.Reviewing && phase !== ScannerPhase.Error && cameraStatus === 'streaming' && (
+        <Button
+          variant="contained"
+          size="large"
+          onClick={captureAndExtract}
+          loading={phase === ScannerPhase.Extracting}
+          loadingPosition="start"
+          sx={{
+            borderRadius: 999,
+            py: 1,
+            fontWeight: 700,
+            letterSpacing: 1,
+            textTransform: 'uppercase',
+            boxShadow: '0 12px 24px -8px rgba(30, 58, 138, 0.5)',
+          }}
+        >
+          {phase === ScannerPhase.Extracting ? 'Leyendo dirección...' : 'Obtener dirección'}
+        </Button>
       )}
 
       {phase === ScannerPhase.Error && (
@@ -109,13 +90,6 @@ export function ScanPage() {
       )}
 
       {phase === ScannerPhase.Reviewing && draft && <DeliveryReviewCard value={draft} onConfirm={confirmDelivery} />}
-
-      <OptimizeRouteDialog
-        open={isDialogOpen}
-        deliveries={session.deliveries}
-        onClose={closeOptimizeDialog}
-        onOptimized={handleOptimized}
-      />
     </AppLayout>
   );
 }
