@@ -1,6 +1,14 @@
-import { Typography } from '@mui/material';
+import { Alert, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { AdvancedMarker, InfoWindow, Map, Polyline, useAdvancedMarkerRef } from '@vis.gl/react-google-maps';
+import {
+  AdvancedMarker,
+  APILoadingStatus,
+  InfoWindow,
+  Map,
+  Polyline,
+  useAdvancedMarkerRef,
+  useApiLoadingStatus,
+} from '@vis.gl/react-google-maps';
 import { useMemo, useState } from 'react';
 import {
   DELIVERY_STATUS_CONFIG,
@@ -85,6 +93,7 @@ function DeliveryMarker({ delivery, order, color, statusLabel, isSelected, onSel
 
 export function DeliveryMap({ deliveries, currentLocation, routeSummary, onSelectDelivery }: DeliveryMapProps) {
   const theme = useTheme();
+  const loadingStatus = useApiLoadingStatus();
   const [selectedDeliveryId, setSelectedDeliveryId] = useState<string | null>(null);
 
   const markers = useMemo(
@@ -106,58 +115,74 @@ export function DeliveryMap({ deliveries, currentLocation, routeSummary, onSelec
   };
 
   return (
-    <Map
-      mapId={MAP_CONFIG.mapId}
-      defaultCenter={{ lat: MAP_CONFIG.defaultCenter.latitude, lng: MAP_CONFIG.defaultCenter.longitude }}
-      defaultZoom={MAP_CONFIG.defaultZoom}
-      gestureHandling="greedy"
-      disableDefaultUI={false}
-      style={{ flex: 1, width: '100%', minHeight: '55dvh' }}
-    >
-      <MapBoundsController positions={positions} />
-      <MapResizeController />
-
-      {routeSummary?.encodedPolyline && (
-        <Polyline
-          encodedPath={routeSummary.encodedPolyline}
-          strokeColor={theme.palette.primary.main}
-          strokeOpacity={0.7}
-          strokeWeight={3}
-        />
+    <>
+      {/* Diagnóstico temporal: el mapa no se veía en mobile en producción y las dos causas más
+       *  comunes (contenedor en 0px, script bloqueado por CSP) ya se descartaron/corrigieron.
+       *  Este banner expone el estado real de carga de la API para saber si Google está
+       *  rechazando la key (restricción de referrer, API no habilitada, billing) en vez de
+       *  seguir adivinando — sacar una vez encontrada la causa real. */}
+      {(loadingStatus === APILoadingStatus.FAILED || loadingStatus === APILoadingStatus.AUTH_FAILURE) && (
+        <Alert severity="error" sx={{ flexShrink: 0 }}>
+          {loadingStatus === APILoadingStatus.AUTH_FAILURE
+            ? 'Google rechazó la clave del mapa (restricción de referrer, API no habilitada, o billing).'
+            : 'No se pudo cargar el script de Google Maps.'}{' '}
+          [diag: {loadingStatus}]
+        </Alert>
       )}
 
-      {markers.map(({ delivery, order }) => {
-        const config = DELIVERY_STATUS_CONFIG[delivery.status];
-        const color = theme.palette[config.color as StatusPaletteKey].main;
+      <Map
+        mapId={MAP_CONFIG.mapId}
+        defaultCenter={{ lat: MAP_CONFIG.defaultCenter.latitude, lng: MAP_CONFIG.defaultCenter.longitude }}
+        defaultZoom={MAP_CONFIG.defaultZoom}
+        gestureHandling="greedy"
+        disableDefaultUI={false}
+        style={{ flex: 1, width: '100%', minHeight: '55dvh' }}
+      >
+        <MapBoundsController positions={positions} />
+        <MapResizeController />
 
-        return (
-          <DeliveryMarker
-            key={delivery.id}
-            delivery={delivery}
-            order={order}
-            color={color}
-            statusLabel={config.label}
-            isSelected={selectedDeliveryId === delivery.id}
-            onSelect={handleSelect}
-            onClose={() => setSelectedDeliveryId(null)}
+        {routeSummary?.encodedPolyline && (
+          <Polyline
+            encodedPath={routeSummary.encodedPolyline}
+            strokeColor={theme.palette.primary.main}
+            strokeOpacity={0.7}
+            strokeWeight={3}
           />
-        );
-      })}
+        )}
 
-      {currentLocation && (
-        <AdvancedMarker position={{ lat: currentLocation.latitude, lng: currentLocation.longitude }}>
-          <div
-            style={{
-              width: 18,
-              height: 18,
-              borderRadius: '50%',
-              border: '3px solid #ffffff',
-              boxShadow: `0 0 0 4px ${theme.palette.primary.main}40, 0 1px 4px rgba(15, 23, 42, 0.35)`,
-              backgroundColor: theme.palette.primary.main,
-            }}
-          />
-        </AdvancedMarker>
-      )}
-    </Map>
+        {markers.map(({ delivery, order }) => {
+          const config = DELIVERY_STATUS_CONFIG[delivery.status];
+          const color = theme.palette[config.color as StatusPaletteKey].main;
+
+          return (
+            <DeliveryMarker
+              key={delivery.id}
+              delivery={delivery}
+              order={order}
+              color={color}
+              statusLabel={config.label}
+              isSelected={selectedDeliveryId === delivery.id}
+              onSelect={handleSelect}
+              onClose={() => setSelectedDeliveryId(null)}
+            />
+          );
+        })}
+
+        {currentLocation && (
+          <AdvancedMarker position={{ lat: currentLocation.latitude, lng: currentLocation.longitude }}>
+            <div
+              style={{
+                width: 18,
+                height: 18,
+                borderRadius: '50%',
+                border: '3px solid #ffffff',
+                boxShadow: `0 0 0 4px ${theme.palette.primary.main}40, 0 1px 4px rgba(15, 23, 42, 0.35)`,
+                backgroundColor: theme.palette.primary.main,
+              }}
+            />
+          </AdvancedMarker>
+        )}
+      </Map>
+    </>
   );
 }
