@@ -13,6 +13,7 @@ import {
 import { MAP_CONFIG } from '../config/mapConfig';
 import { hasCoordinates } from '../utils/hasCoordinates';
 import { MapBoundsController } from './MapBoundsController';
+import { MapResizeController } from './MapResizeController';
 
 interface DeliveryMapProps {
   deliveries: Delivery[];
@@ -111,9 +112,10 @@ export function DeliveryMap({ deliveries, currentLocation, routeSummary, onSelec
       defaultZoom={MAP_CONFIG.defaultZoom}
       gestureHandling="greedy"
       disableDefaultUI={false}
-      style={{ flex: 1, width: '100%', minHeight: 0 }}
+      style={{ flex: 1, width: '100%', minHeight: '55dvh' }}
     >
       <MapBoundsController positions={positions} />
+      <MapResizeController />
 
       {routeSummary?.encodedPolyline && (
         <Polyline

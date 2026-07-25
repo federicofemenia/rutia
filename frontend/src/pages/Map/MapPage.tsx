@@ -44,7 +44,7 @@ export function MapPage() {
         </Alert>
       )}
 
-      <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      <Box sx={{ flex: 1, minHeight: '55dvh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
         <DeliveryMap
           deliveries={session.deliveries}
           currentLocation={coordinates ?? undefined}
