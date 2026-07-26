@@ -8,13 +8,15 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "tsx --test $(find src -name '*.test.ts')",
-    "db:seed": "tsx --env-file=.env src/scripts/seedUsers.ts"
+    "user:create-super-admin": "tsx --env-file=.env src/scripts/createSuperAdmin.ts",
+    "database:reset-users": "tsx --env-file=.env src/scripts/resetUsers.ts"
   },
   "dependencies": {
     "@google/genai": "^2.11.0",
     "@libsql/client": "^0.17.4",
     "cors": "^2.8.6",
     "express": "^5.1.0",
+    "express-rate-limit": "^8.6.0",
     "jsonwebtoken": "9.0.3"
   },
   "devDependencies": {

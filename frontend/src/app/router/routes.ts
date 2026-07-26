@@ -1,12 +1,13 @@
 export const ROUTES = {
   login: '/login',
+  driverRegistration: '/registro-chofer',
   home: '/',
   scan: '/scan',
   routeSummary: '/route-summary',
   map: '/map',
-  tracking: '/tracking/:driverName',
+  tracking: '/tracking/:driverId',
 } as const;
 
-export function buildTrackingPath(driverName: string): string {
-  return `/tracking/${encodeURIComponent(driverName)}`;
+export function buildTrackingPath(driverId: string): string {
+  return `/tracking/${encodeURIComponent(driverId)}`;
 }

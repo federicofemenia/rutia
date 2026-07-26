@@ -25,4 +25,39 @@ export const migrations: Migration[] = [
       )`,
     ],
   },
+  {
+    // Multi-empresa (SUPER_ADMIN/COMPANY_ADMIN/DRIVER) — ver docs del plan de la sesión. El
+    // código de registro se guarda hasheado (nunca en texto plano), y se busca por igualdad
+    // exacta del hash — el índice UNIQUE es lo que hace esa búsqueda O(1) en vez de iterar todas
+    // las empresas.
+    id: '0002_create_companies_table',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS companies (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        legal_name TEXT,
+        tax_id TEXT,
+        contact_email TEXT,
+        registration_code_hash TEXT NOT NULL,
+        registration_enabled INTEGER NOT NULL DEFAULT 1,
+        active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_companies_registration_code_hash ON companies(registration_code_hash)`,
+    ],
+  },
+  {
+    // Aditiva: no toca los usuarios existentes más que darles `active=1` y copiar `updated_at`
+    // desde `created_at` — el código viejo que no conoce estas columnas sigue funcionando igual
+    // (SqliteUserRepository.toUser hoy solo lee las columnas que ya conocía).
+    id: '0003_add_multitenancy_columns_to_users',
+    statements: [
+      'ALTER TABLE users ADD COLUMN company_id TEXT REFERENCES companies(id)',
+      'ALTER TABLE users ADD COLUMN active INTEGER NOT NULL DEFAULT 1',
+      "ALTER TABLE users ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''",
+      "UPDATE users SET updated_at = created_at WHERE updated_at = ''",
+      'CREATE INDEX IF NOT EXISTS idx_users_company_role ON users(company_id, role)',
+    ],
+  },
 ];

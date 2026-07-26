@@ -6,19 +6,20 @@ import { AppLayout } from '../../shared/components';
 import { HOME_ONLY_NAV_ITEMS } from '../../shared/config/bottomNavItems';
 
 export function TrackingPage() {
-  const { driverName = '' } = useParams<{ driverName: string }>();
-  const { status, data, errorMessage } = useDriverTracking(driverName);
+  const { driverId = '' } = useParams<{ driverId: string }>();
+  const { status, data, errorMessage } = useDriverTracking(driverId);
 
+  const driverName = data?.driver.name ?? '';
   const deliveries = data?.session?.deliveries ?? [];
 
   return (
-    <AppLayout title={`Seguimiento: ${driverName}`} bottomNavItems={HOME_ONLY_NAV_ITEMS}>
-      <Typography variant="h6">Envíos del chofer {driverName}</Typography>
+    <AppLayout title={driverName ? `Seguimiento: ${driverName}` : 'Seguimiento'} bottomNavItems={HOME_ONLY_NAV_ITEMS}>
+      <Typography variant="h6">{driverName ? `Envíos del chofer ${driverName}` : 'Envíos del chofer'}</Typography>
 
       {status === 'loading' && !data && (
         <Stack direction="row" spacing={2} sx={{ alignItems: 'center', justifyContent: 'center', py: 4 }}>
           <CircularProgress size={24} />
-          <Typography variant="body2">Buscando a {driverName}...</Typography>
+          <Typography variant="body2">Buscando...</Typography>
         </Stack>
       )}
 

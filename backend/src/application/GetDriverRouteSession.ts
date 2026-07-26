@@ -3,6 +3,12 @@ import type { RouteSessionRepository } from '../domain/RouteSessionRepository.js
 import type { User } from '../domain/User.js';
 import type { UserRepository } from '../domain/UserRepository.js';
 
+export interface GetDriverRouteSessionInput {
+  driverId: string;
+  /** `null` para SUPER_ADMIN (sin scoping por empresa, pero el rol DRIVER se valida igual). */
+  requesterCompanyId: string | null;
+}
+
 export interface DriverRouteSession {
   driver: Pick<User, 'id' | 'name' | 'role'>;
   session: RouteSession | null;
@@ -14,8 +20,11 @@ export class GetDriverRouteSession {
     private readonly routeSessionRepository: RouteSessionRepository,
   ) {}
 
-  async execute(driverName: string): Promise<DriverRouteSession | null> {
-    const driver = await this.userRepository.findByName(driverName);
+  async execute({ driverId, requesterCompanyId }: GetDriverRouteSessionInput): Promise<DriverRouteSession | null> {
+    const driver =
+      requesterCompanyId === null
+        ? await this.userRepository.findDriverById(driverId)
+        : await this.userRepository.findDriverByIdAndCompany(driverId, requesterCompanyId);
 
     if (!driver) {
       return null;

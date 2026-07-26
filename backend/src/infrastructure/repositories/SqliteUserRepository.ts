@@ -16,7 +16,16 @@ function isUserRole(value: string): value is UserRole {
  * `id`/`name`/etc. sean realmente texto.
  */
 function toUser(row: Row): User {
-  const { id, name, role, password_hash: passwordHash, created_at: createdAt } = row;
+  const {
+    id,
+    name,
+    role,
+    company_id: companyId,
+    password_hash: passwordHash,
+    active,
+    created_at: createdAt,
+    updated_at: updatedAt,
+  } = row;
 
   if (typeof id !== 'string') {
     throw new Error('Fila de "users" con "id" no textual.');
@@ -27,14 +36,23 @@ function toUser(row: Row): User {
   if (typeof role !== 'string' || !isUserRole(role)) {
     throw new Error(`Fila de "users" con "role" inválido: ${String(role)}.`);
   }
+  if (companyId !== null && typeof companyId !== 'string') {
+    throw new Error('Fila de "users" con "company_id" no textual.');
+  }
   if (typeof passwordHash !== 'string') {
     throw new Error('Fila de "users" con "password_hash" no textual.');
+  }
+  if (typeof active !== 'number' && typeof active !== 'bigint') {
+    throw new Error('Fila de "users" con "active" no numérica.');
   }
   if (typeof createdAt !== 'string') {
     throw new Error('Fila de "users" con "created_at" no textual.');
   }
+  if (typeof updatedAt !== 'string') {
+    throw new Error('Fila de "users" con "updated_at" no textual.');
+  }
 
-  return { id, name, role, passwordHash, createdAt };
+  return { id, name, role, companyId, passwordHash, active: Number(active) === 1, createdAt, updatedAt };
 }
 
 export class SqliteUserRepository implements UserRepository {
@@ -57,8 +75,44 @@ export class SqliteUserRepository implements UserRepository {
 
   async create(user: User): Promise<void> {
     await this.client.execute({
-      sql: 'INSERT INTO users (id, name, role, password_hash, created_at) VALUES (?, ?, ?, ?, ?)',
-      args: [user.id, user.name, user.role, user.passwordHash, user.createdAt],
+      sql: `INSERT INTO users (id, name, role, company_id, password_hash, active, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        user.id,
+        user.name,
+        user.role,
+        user.companyId,
+        user.passwordHash,
+        user.active ? 1 : 0,
+        user.createdAt,
+        user.updatedAt,
+      ],
     });
+  }
+
+  async findDriverById(id: string): Promise<User | null> {
+    const result = await this.client.execute({
+      sql: 'SELECT * FROM users WHERE id = ? AND role = ?',
+      args: [id, UserRole.Driver],
+    });
+    const row = result.rows[0];
+    return row ? toUser(row) : null;
+  }
+
+  async findDriverByIdAndCompany(id: string, companyId: string): Promise<User | null> {
+    const result = await this.client.execute({
+      sql: 'SELECT * FROM users WHERE id = ? AND company_id = ? AND role = ?',
+      args: [id, companyId, UserRole.Driver],
+    });
+    const row = result.rows[0];
+    return row ? toUser(row) : null;
+  }
+
+  async listDriversByCompany(companyId: string): Promise<User[]> {
+    const result = await this.client.execute({
+      sql: 'SELECT * FROM users WHERE company_id = ? AND role = ?',
+      args: [companyId, UserRole.Driver],
+    });
+    return result.rows.map(toUser);
   }
 }

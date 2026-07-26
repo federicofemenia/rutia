@@ -16,7 +16,7 @@ interface UseDriverTrackingResult {
  * infraestructura de WebSockets (decisión ya tomada para el MVP). Conserva el último dato bueno
  * en pantalla si un sondeo puntual falla, en vez de vaciar la lista.
  */
-export function useDriverTracking(driverName: string): UseDriverTrackingResult {
+export function useDriverTracking(driverId: string): UseDriverTrackingResult {
   const [status, setStatus] = useState<DriverTrackingStatus>('loading');
   const [data, setData] = useState<DriverRouteSession | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -29,7 +29,7 @@ export function useDriverTracking(driverName: string): UseDriverTrackingResult {
 
     async function poll() {
       try {
-        const result = await fetchDriverRouteSession(driverName);
+        const result = await fetchDriverRouteSession(driverId);
         if (cancelled) {
           return;
         }
@@ -52,7 +52,7 @@ export function useDriverTracking(driverName: string): UseDriverTrackingResult {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [driverName]);
+  }, [driverId]);
 
   return { status, data, errorMessage };
 }

@@ -132,6 +132,10 @@ export function LoginPage() {
           >
             Ingresar
           </Button>
+
+          <Button variant="text" onClick={() => navigate(ROUTES.driverRegistration)}>
+            Soy chofer y quiero registrarme
+          </Button>
         </Stack>
       </Stack>
     </Box>

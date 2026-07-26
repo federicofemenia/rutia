@@ -20,7 +20,13 @@ export function createLoginController(useCase: AuthenticateUser) {
 
       res.status(200).json({
         token: result.token,
-        user: { id: result.user.id, name: result.user.name, role: result.user.role },
+        user: {
+          id: result.user.id,
+          name: result.user.name,
+          role: result.user.role,
+          companyId: result.user.companyId,
+          companyName: result.companyName,
+        },
       });
     } catch (error) {
       console.error('Error al autenticar', error);

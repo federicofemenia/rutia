@@ -1,0 +1,1 @@
+export { DriverRegistrationPage } from './DriverRegistrationPage';

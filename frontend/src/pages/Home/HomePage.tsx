@@ -1,14 +1,12 @@
 import Inventory2Icon from '@mui/icons-material/Inventory2';
 import PhotoCameraOutlinedIcon from '@mui/icons-material/PhotoCameraOutlined';
-import { Avatar, Box, Button, Card, CardContent, Chip, LinearProgress, Stack, Typography } from '@mui/material';
-import { useState } from 'react';
+import { Avatar, Box, Card, CardContent, Chip, LinearProgress, Stack, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../app/router/routes';
-import { useAuth, UserRole } from '../../features/auth';
+import { useAuth } from '../../features/auth';
 import { DeliveryStatus, summarizeDeliveries, useRoute } from '../../features/route';
 import { AppBrandHeader, AppLayout, IconBadge, StatCard } from '../../shared/components';
 import { BRAND } from '../../shared/config/brand';
-import { TrackDriverDialog } from './components/TrackDriverDialog';
 
 function getInitials(name: string): string {
   const initials = name
@@ -26,7 +24,6 @@ export function HomePage() {
   const navigate = useNavigate();
   const { session, startNewRoute } = useRoute();
   const { user, logout } = useAuth();
-  const [isTrackDialogOpen, setIsTrackDialogOpen] = useState(false);
 
   const hasActiveRoute = session.deliveries.length > 0;
 
@@ -135,17 +132,9 @@ export function HomePage() {
         </CardContent>
       </Card>
 
-      {user?.role === UserRole.Admin && (
-        <Button variant="outlined" size="large" fullWidth onClick={() => setIsTrackDialogOpen(true)}>
-          Hacer seguimiento
-        </Button>
-      )}
-
       <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
         v{BRAND.version}
       </Typography>
-
-      <TrackDriverDialog open={isTrackDialogOpen} onClose={() => setIsTrackDialogOpen(false)} />
     </AppLayout>
   );
 }

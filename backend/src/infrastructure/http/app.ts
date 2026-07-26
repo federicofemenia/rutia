@@ -1,26 +1,45 @@
 import type { Client } from '@libsql/client';
 import express from 'express';
 import { AuthenticateUser } from '../../application/AuthenticateUser.js';
+import { CreateCompany } from '../../application/CreateCompany.js';
+import { CreateCompanyAdmin } from '../../application/CreateCompanyAdmin.js';
 import { ExtractAddressFromImage } from '../../application/ExtractAddressFromImage.js';
+import { GetCompanyDrivers } from '../../application/GetCompanyDrivers.js';
 import { GetDriverRouteSession } from '../../application/GetDriverRouteSession.js';
 import { GetRouteSession } from '../../application/GetRouteSession.js';
 import { OptimizeRoute } from '../../application/OptimizeRoute.js';
+import { RegenerateRegistrationCode } from '../../application/RegenerateRegistrationCode.js';
+import { RegisterDriver } from '../../application/RegisterDriver.js';
 import { SaveRouteSession } from '../../application/SaveRouteSession.js';
+import { UpdateCompanyRegistration } from '../../application/UpdateCompanyRegistration.js';
+import { UpdateCompanyStatus } from '../../application/UpdateCompanyStatus.js';
+import { ValidateCompanyRegistrationCode } from '../../application/ValidateCompanyRegistrationCode.js';
 import { GeminiVisionAddressExtractor } from '../ai/GeminiVisionAddressExtractor.js';
 import { JwtTokenService } from '../auth/JwtTokenService.js';
 import { env } from '../config/env.js';
 import { createDatabase } from '../database/createDatabase.js';
+import { SqliteCompanyRepository } from '../repositories/SqliteCompanyRepository.js';
 import { SqliteRouteSessionRepository } from '../repositories/SqliteRouteSessionRepository.js';
 import { SqliteUserRepository } from '../repositories/SqliteUserRepository.js';
 import { GoogleRoutesOptimizer } from '../routing/GoogleRoutesOptimizer.js';
+import { UserRole } from '../../domain/UserRole.js';
 import { createAuthMiddleware } from './authMiddleware.js';
+import { createCreateCompanyAdminController } from './createCompanyAdminController.js';
+import { createCreateCompanyController } from './createCompanyController.js';
 import { createExtractAddressController } from './extractAddressController.js';
+import { createGetCompanyDriversController } from './getCompanyDriversController.js';
 import { createGetDriverRouteSessionController } from './getDriverRouteSessionController.js';
 import { createGetRouteSessionController } from './getRouteSessionController.js';
 import { createLoginController } from './loginController.js';
 import { createOptimizeRouteController } from './optimizeRouteController.js';
-import { requireAdminMiddleware } from './requireAdminMiddleware.js';
+import { registerDriverRateLimiter, validateRegistrationCodeRateLimiter } from './rateLimiters.js';
+import { createRegenerateRegistrationCodeController } from './regenerateRegistrationCodeController.js';
+import { createRegisterDriverController } from './registerDriverController.js';
+import { requireRole } from './requireRoleMiddleware.js';
 import { createSaveRouteSessionController } from './saveRouteSessionController.js';
+import { createUpdateCompanyRegistrationController } from './updateCompanyRegistrationController.js';
+import { createUpdateCompanyStatusController } from './updateCompanyStatusController.js';
+import { createValidateCompanyRegistrationCodeController } from './validateCompanyRegistrationCodeController.js';
 import cors from 'cors';
 
 export interface CreatedApp {
@@ -31,12 +50,25 @@ export interface CreatedApp {
 export async function createApp(): Promise<CreatedApp> {
   const database = await createDatabase(env.database);
   const userRepository = new SqliteUserRepository(database);
+  const companyRepository = new SqliteCompanyRepository(database);
   const routeSessionRepository = new SqliteRouteSessionRepository(database);
   const tokenService = new JwtTokenService(env.jwtSecret);
-  const authenticateUser = new AuthenticateUser(userRepository, tokenService);
+  const authenticateUser = new AuthenticateUser(userRepository, companyRepository, tokenService);
   const saveRouteSession = new SaveRouteSession(routeSessionRepository);
   const getRouteSession = new GetRouteSession(routeSessionRepository);
   const getDriverRouteSession = new GetDriverRouteSession(userRepository, routeSessionRepository);
+  const getCompanyDrivers = new GetCompanyDrivers(userRepository, routeSessionRepository);
+  const validateCompanyRegistrationCode = new ValidateCompanyRegistrationCode(
+    companyRepository,
+    tokenService,
+    env.jwtSecret,
+  );
+  const registerDriver = new RegisterDriver(userRepository, companyRepository, tokenService);
+  const createCompany = new CreateCompany(companyRepository, env.jwtSecret);
+  const createCompanyAdmin = new CreateCompanyAdmin(userRepository, companyRepository);
+  const regenerateRegistrationCode = new RegenerateRegistrationCode(companyRepository, env.jwtSecret);
+  const updateCompanyRegistration = new UpdateCompanyRegistration(companyRepository);
+  const updateCompanyStatus = new UpdateCompanyStatus(companyRepository);
 
   const extractor = new GeminiVisionAddressExtractor(env.geminiApiKey, env.geminiModel);
   const extractAddressFromImage = new ExtractAddressFromImage(extractor);
@@ -72,15 +104,59 @@ export async function createApp(): Promise<CreatedApp> {
   app.use(express.json({ limit: '10mb' }));
 
   app.post('/api/auth/login', createLoginController(authenticateUser));
+  app.post(
+    '/api/auth/company-registration/validate',
+    validateRegistrationCodeRateLimiter,
+    createValidateCompanyRegistrationCodeController(validateCompanyRegistrationCode),
+  );
+  app.post('/api/auth/register-driver', registerDriverRateLimiter, createRegisterDriverController(registerDriver));
   app.post('/api/addresses/extract', requireAuth, createExtractAddressController(extractAddressFromImage));
   app.post('/api/routes/optimize', requireAuth, createOptimizeRouteController(optimizeRoute));
   app.put('/api/route-session', requireAuth, createSaveRouteSessionController(saveRouteSession));
   app.get('/api/route-session', requireAuth, createGetRouteSessionController(getRouteSession));
   app.get(
-    '/api/admin/drivers/:name/route-session',
+    '/api/admin/drivers/:driverId/route-session',
     requireAuth,
-    requireAdminMiddleware,
+    requireRole(UserRole.SuperAdmin, UserRole.CompanyAdmin),
     createGetDriverRouteSessionController(getDriverRouteSession),
+  );
+
+  app.get(
+    '/api/company/drivers',
+    requireAuth,
+    requireRole(UserRole.CompanyAdmin),
+    createGetCompanyDriversController(getCompanyDrivers),
+  );
+
+  app.post(
+    '/api/admin/companies',
+    requireAuth,
+    requireRole(UserRole.SuperAdmin),
+    createCreateCompanyController(createCompany),
+  );
+  app.post(
+    '/api/admin/companies/:companyId/admins',
+    requireAuth,
+    requireRole(UserRole.SuperAdmin),
+    createCreateCompanyAdminController(createCompanyAdmin),
+  );
+  app.post(
+    '/api/admin/companies/:companyId/registration-code/regenerate',
+    requireAuth,
+    requireRole(UserRole.SuperAdmin),
+    createRegenerateRegistrationCodeController(regenerateRegistrationCode),
+  );
+  app.patch(
+    '/api/admin/companies/:companyId/registration',
+    requireAuth,
+    requireRole(UserRole.SuperAdmin),
+    createUpdateCompanyRegistrationController(updateCompanyRegistration),
+  );
+  app.patch(
+    '/api/admin/companies/:companyId/status',
+    requireAuth,
+    requireRole(UserRole.SuperAdmin),
+    createUpdateCompanyStatusController(updateCompanyStatus),
   );
 
   return { app, database };

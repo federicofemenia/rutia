@@ -3,29 +3,49 @@ import { test } from 'node:test';
 import { createClient, type Client } from '@libsql/client';
 import { runMigrations } from '../database/runMigrations.js';
 import { migrations } from '../database/migrations/migrations.js';
+import type { Company } from '../../domain/Company.js';
 import type { RouteSession } from '../../domain/RouteSession.js';
 import type { User } from '../../domain/User.js';
 import { UserRole } from '../../domain/UserRole.js';
+import { SqliteCompanyRepository } from './SqliteCompanyRepository.js';
 import { SqliteUserRepository } from './SqliteUserRepository.js';
 import { SqliteRouteSessionRepository } from './SqliteRouteSessionRepository.js';
+
+const SAMPLE_COMPANY: Company = {
+  id: 'company-1',
+  name: 'Acme',
+  legalName: null,
+  taxId: null,
+  contactEmail: null,
+  registrationCodeHash: 'hash-company-1',
+  registrationEnabled: true,
+  active: true,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+};
 
 const SAMPLE_USER: User = {
   id: 'user-1',
   name: 'chofer',
-  role: UserRole.Chofer,
+  role: UserRole.Driver,
+  companyId: 'company-1',
   passwordHash: 'hashed-password',
+  active: true,
   createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
 };
 
 /**
- * `route_sessions.user_id` tiene FOREIGN KEY a `users(id)`, y a diferencia de `node:sqlite`
- * (que no la hacía cumplir por defecto), el cliente local de libSQL sí la exige — así que estos
- * tests, igual que el uso real (solo se guarda la sesión de un usuario ya autenticado), necesitan
- * un usuario real insertado antes de poder guardar su route_session.
+ * `route_sessions.user_id` tiene FOREIGN KEY a `users(id)` (y `users.company_id` a
+ * `companies(id)`), y a diferencia de `node:sqlite` (que no la hacía cumplir por defecto), el
+ * cliente local de libSQL sí la exige — así que estos tests, igual que el uso real (solo se guarda
+ * la sesión de un usuario ya autenticado), necesitan una empresa y un usuario reales insertados
+ * antes de poder guardar su route_session.
  */
 async function createMigratedClientWithUser(): Promise<Client> {
   const client = createClient({ url: ':memory:' });
   await runMigrations(client, migrations);
+  await new SqliteCompanyRepository(client).create(SAMPLE_COMPANY);
   await new SqliteUserRepository(client).create(SAMPLE_USER);
   return client;
 }

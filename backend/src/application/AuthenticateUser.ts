@@ -1,3 +1,4 @@
+import type { CompanyRepository } from '../domain/CompanyRepository.js';
 import { verifyPassword } from '../domain/passwordHashing.js';
 import type { TokenService } from '../domain/TokenService.js';
 import type { User } from '../domain/User.js';
@@ -10,23 +11,40 @@ export interface AuthenticateUserInput {
 
 export interface AuthenticateUserResult {
   user: User;
+  companyName: string | null;
   token: string;
 }
 
 export class AuthenticateUser {
   constructor(
     private readonly userRepository: UserRepository,
+    private readonly companyRepository: CompanyRepository,
     private readonly tokenService: TokenService,
   ) {}
 
   async execute({ name, password }: AuthenticateUserInput): Promise<AuthenticateUserResult | null> {
     const user = await this.userRepository.findByName(name);
 
-    if (!user || !verifyPassword(password, user.passwordHash)) {
+    if (!user || !verifyPassword(password, user.passwordHash) || !user.active) {
       return null;
     }
 
-    const token = this.tokenService.sign({ userId: user.id, role: user.role });
-    return { user, token };
+    let companyName: string | null = null;
+
+    if (user.companyId !== null) {
+      const company = await this.companyRepository.findById(user.companyId);
+      if (!company || !company.active) {
+        return null;
+      }
+      companyName = company.name;
+    }
+
+    const token = this.tokenService.sign({
+      purpose: 'session',
+      userId: user.id,
+      role: user.role,
+      companyId: user.companyId,
+    });
+    return { user, companyName, token };
   }
 }

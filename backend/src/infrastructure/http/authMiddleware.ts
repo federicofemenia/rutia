@@ -1,10 +1,10 @@
 import type { NextFunction, Request, Response } from 'express';
-import type { AuthTokenPayload, TokenService } from '../../domain/TokenService.js';
+import type { SessionTokenPayload, TokenService } from '../../domain/TokenService.js';
 
 declare global {
   namespace Express {
     interface Request {
-      auth?: AuthTokenPayload;
+      auth?: SessionTokenPayload;
     }
   }
 }
@@ -21,7 +21,9 @@ export function createAuthMiddleware(tokenService: TokenService) {
 
     const payload = tokenService.verify(token);
 
-    if (!payload) {
+    // Un token de registro de chofer (`purpose: 'driver-registration'`) nunca es válido acá —
+    // solo se usa dentro del body de POST /api/auth/register-driver, nunca como Bearer token.
+    if (!payload || payload.purpose !== 'session') {
       res.status(401).json({ error: 'Token inválido o expirado.' });
       return;
     }
