@@ -10,11 +10,12 @@ import { OptimizeRouteDialog, useOptimizeDeliveries } from '../../features/route
 import {
   buildDeliveryLegInfo,
   DeliveryActionsSheet,
-  DeliveryListItem,
+  DeliveryGroupCard,
   DeliveryStatus,
   formatFullAddress,
   GeocodingStatus,
   getVisibleDeliveries,
+  groupDeliveriesByAddress,
   isRouteFullyOptimized,
   RouteOverviewCard,
   RouteSummaryStats,
@@ -37,6 +38,7 @@ export function RouteSummaryPage() {
 
   const pendingCount = session.deliveries.filter((delivery) => delivery.geocodingStatus === GeocodingStatus.Pending).length;
   const visibleDeliveries = getVisibleDeliveries(session.deliveries);
+  const deliveryGroups = groupDeliveriesByAddress(visibleDeliveries);
   const legInfoByDeliveryId = buildDeliveryLegInfo(routeSummary);
   const hasActiveDelivery = session.deliveries.some((delivery) => delivery.status === DeliveryStatus.InProgress);
   const needsOptimize = session.deliveries.length > 0 && !isRouteFullyOptimized(session.deliveries, legInfoByDeliveryId, routeSummary);
@@ -87,18 +89,21 @@ export function RouteSummaryPage() {
       )}
 
       <Stack spacing={1.5}>
-        {visibleDeliveries.map((delivery) => (
-          <DeliveryListItem
-            key={delivery.id}
-            delivery={delivery}
-            legInfo={legInfoByDeliveryId.get(delivery.id)}
-            hasActiveDelivery={hasActiveDelivery}
-            onOpen={setSelectedDelivery}
-            onNavigate={setNavigationTarget}
-            onStart={(target) => startDelivery(target.id)}
-            onDelete={(target) => removeDelivery(target.id)}
-          />
-        ))}
+        {deliveryGroups.map((group) => {
+          const lastDelivery = group.deliveries[group.deliveries.length - 1];
+          return (
+            <DeliveryGroupCard
+              key={group.key}
+              deliveries={group.deliveries}
+              legInfo={lastDelivery && legInfoByDeliveryId.get(lastDelivery.id)}
+              hasActiveDelivery={hasActiveDelivery}
+              onOpen={setSelectedDelivery}
+              onNavigate={setNavigationTarget}
+              onStart={(target) => startDelivery(target.id)}
+              onDelete={(target) => removeDelivery(target.id)}
+            />
+          );
+        })}
       </Stack>
 
       <DeliveryActionsSheet

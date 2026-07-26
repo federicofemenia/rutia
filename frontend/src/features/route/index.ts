@@ -1,4 +1,5 @@
 export { DeliveryActionsSheet } from './components/DeliveryActionsSheet';
+export { DeliveryGroupCard } from './components/DeliveryGroupCard';
 export { DeliveryListItem } from './components/DeliveryListItem';
 export { DeliveryStatusChip } from './components/DeliveryStatusChip';
 export { RouteOverviewCard } from './components/RouteOverviewCard';
@@ -25,6 +26,7 @@ export { formatFullAddress, formatLocalityLine, formatStreetLine, hasStructuredA
 export { formatLastModified } from './utils/formatLastModified';
 export { formatDistance, formatDuration } from './utils/formatRouteMetrics';
 export { getVisibleDeliveries } from './utils/getVisibleDeliveries';
+export { groupDeliveriesByAddress, type DeliveryGroup } from './utils/groupDeliveriesByAddress';
 export { isRouteFullyOptimized } from './utils/isRouteFullyOptimized';
 export { selectNextDelivery } from './utils/selectNextDelivery';
 export { summarizeDeliveries } from './utils/summarizeDeliveries';
