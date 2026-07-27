@@ -1,4 +1,4 @@
-import type { RouteSession } from '../../route';
+import { RouteSessionStatus, type RouteSession } from '../../route/types';
 
 /** Forma tal cual la devuelve el backend: `createdAt`/`updatedAt` son strings ISO, no `Date`. */
 interface RouteSessionWireFormat {
@@ -6,6 +6,17 @@ interface RouteSessionWireFormat {
   createdAt: string;
   updatedAt: string;
   deliveries: RouteSession['deliveries'];
+  /** Ausente en respuestas de un backend viejo (previo a esta funcionalidad) — se asume in_progress. */
+  status?: RouteSessionStatus;
+}
+
+function toRouteSession(data: RouteSessionWireFormat): RouteSession {
+  return {
+    ...data,
+    createdAt: new Date(data.createdAt),
+    updatedAt: new Date(data.updatedAt),
+    status: data.status ?? RouteSessionStatus.InProgress,
+  };
 }
 
 /**
@@ -25,6 +36,21 @@ export async function parseRouteSessionResponse(
   }
 
   const data = (await response.json()) as RouteSessionWireFormat;
+  return toRouteSession(data);
+}
 
-  return { ...data, createdAt: new Date(data.createdAt), updatedAt: new Date(data.updatedAt) };
+/**
+ * A diferencia de `parseRouteSessionResponse`, acá un 404 ("no hay ruta para finalizar") sí es un
+ * error — no tiene sentido "finalizar" algo que no existe.
+ */
+export async function parseFinishRouteSessionResponse(
+  response: Pick<Response, 'ok' | 'status' | 'json'>,
+): Promise<RouteSession> {
+  if (!response.ok) {
+    const data = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(data?.error ?? 'No se pudo finalizar la ruta.');
+  }
+
+  const data = (await response.json()) as RouteSessionWireFormat;
+  return toRouteSession(data);
 }

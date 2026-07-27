@@ -88,43 +88,52 @@ export function DeliveryActionsSheet({ delivery, onClose, onNavigate }: Delivery
               </ListItemButton>
 
               {delivery.status === DeliveryStatus.InProgress && (
+                <ListItemButton
+                  disableGutters
+                  onClick={() => {
+                    onNavigate(delivery);
+                    onClose();
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 36 }}>
+                    <NavigationIcon color="info" />
+                  </ListItemIcon>
+                  <ListItemText primary="Navegar" />
+                </ListItemButton>
+              )}
+
+              {/* El resto de los estados quedan siempre visibles (salvo el que ya está activo) —
+                  así, si tocaste el estado equivocado por error, lo corregís sin quedar trabado. */}
+              {delivery.status !== DeliveryStatus.Pending && (
                 <>
-                  <ListItemButton
-                    disableGutters
-                    onClick={() => {
-                      onNavigate(delivery);
-                      onClose();
-                    }}
-                  >
-                    <ListItemIcon sx={{ minWidth: 36 }}>
-                      <NavigationIcon color="info" />
-                    </ListItemIcon>
-                    <ListItemText primary="Navegar" />
-                  </ListItemButton>
-                  <ListItemButton
-                    disableGutters
-                    onClick={() => {
-                      completeDelivery(delivery.id);
-                      onClose();
-                    }}
-                  >
-                    <ListItemIcon sx={{ minWidth: 36 }}>
-                      <CheckCircleIcon color="success" />
-                    </ListItemIcon>
-                    <ListItemText primary="Marcar entregada" />
-                  </ListItemButton>
-                  <ListItemButton
-                    disableGutters
-                    onClick={() => {
-                      setFailingDeliveryId(delivery.id);
-                      onClose();
-                    }}
-                  >
-                    <ListItemIcon sx={{ minWidth: 36 }}>
-                      <CancelIcon color="error" />
-                    </ListItemIcon>
-                    <ListItemText primary="Marcar fallida" />
-                  </ListItemButton>
+                  {delivery.status !== DeliveryStatus.Delivered && (
+                    <ListItemButton
+                      disableGutters
+                      onClick={() => {
+                        completeDelivery(delivery.id);
+                        onClose();
+                      }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 36 }}>
+                        <CheckCircleIcon color="success" />
+                      </ListItemIcon>
+                      <ListItemText primary="Marcar entregada" />
+                    </ListItemButton>
+                  )}
+                  {delivery.status !== DeliveryStatus.Failed && (
+                    <ListItemButton
+                      disableGutters
+                      onClick={() => {
+                        setFailingDeliveryId(delivery.id);
+                        onClose();
+                      }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 36 }}>
+                        <CancelIcon color="error" />
+                      </ListItemIcon>
+                      <ListItemText primary="Marcar fallida" />
+                    </ListItemButton>
+                  )}
                   <ListItemButton
                     disableGutters
                     onClick={() => {
@@ -135,7 +144,7 @@ export function DeliveryActionsSheet({ delivery, onClose, onNavigate }: Delivery
                     <ListItemIcon sx={{ minWidth: 36 }}>
                       <UndoIcon color="action" />
                     </ListItemIcon>
-                    <ListItemText primary="Deshacer inicio" secondary="Por si iniciaste este reparto por error" />
+                    <ListItemText primary="Volver a pendiente" />
                   </ListItemButton>
                 </>
               )}

@@ -4,7 +4,7 @@ import { Avatar, Box, Card, CardContent, Chip, LinearProgress, Stack, Typography
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../app/router/routes';
 import { useAuth } from '../../features/auth';
-import { DeliveryStatus, summarizeDeliveries, useRoute } from '../../features/route';
+import { DeliveryStatus, RouteSessionStatus, summarizeDeliveries, useRoute } from '../../features/route';
 import { AppBrandHeader, AppLayout, IconBadge, StatCard } from '../../shared/components';
 import { BRAND } from '../../shared/config/brand';
 
@@ -25,7 +25,10 @@ export function HomePage() {
   const { session, startNewRoute } = useRoute();
   const { user, logout } = useAuth();
 
-  const hasActiveRoute = session.deliveries.length > 0;
+  // Una ruta ya finalizada ("Terminar recorrido") no cuenta como activa acá, aunque sus entregas
+  // sigan en `session.deliveries` hasta el próximo escaneo — así el próximo escaneo arranca una
+  // ruta nueva en vez de sumarse a la que ya se cerró.
+  const hasActiveRoute = session.deliveries.length > 0 && session.status !== RouteSessionStatus.Finished;
 
   const handleScanAction = () => {
     // Solo arranca una ruta nueva (y descarta la actual) cuando todavía no hay ninguna en curso.
@@ -90,6 +93,22 @@ export function HomePage() {
         </Card>
       )}
 
+      <Typography variant="overline" color="text.secondary">
+        Acciones rápidas
+      </Typography>
+
+      <Card onClick={handleScanAction} sx={{ bgcolor: '#0F172A', color: '#FFFFFF', cursor: 'pointer', border: 'none' }}>
+        <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <IconBadge icon={<PhotoCameraOutlinedIcon fontSize="small" />} color="success" />
+          <Box sx={{ flexGrow: 1 }}>
+            <Typography sx={{ fontWeight: 700 }}>Agregar dirección</Typography>
+            <Typography variant="caption" sx={{ opacity: 0.7 }}>
+              agregar una entrega
+            </Typography>
+          </Box>
+        </CardContent>
+      </Card>
+
       {hasActiveRoute && (
         <Card>
           <CardContent>
@@ -115,22 +134,6 @@ export function HomePage() {
           </CardContent>
         </Card>
       )}
-
-      <Typography variant="overline" color="text.secondary">
-        Acciones rápidas
-      </Typography>
-
-      <Card onClick={handleScanAction} sx={{ bgcolor: '#0F172A', color: '#FFFFFF', cursor: 'pointer', border: 'none' }}>
-        <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <IconBadge icon={<PhotoCameraOutlinedIcon fontSize="small" />} color="success" />
-          <Box sx={{ flexGrow: 1 }}>
-            <Typography sx={{ fontWeight: 700 }}>Agregar dirección</Typography>
-            <Typography variant="caption" sx={{ opacity: 0.7 }}>
-              Capturar dirección del paquete
-            </Typography>
-          </Box>
-        </CardContent>
-      </Card>
 
       <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
         v{BRAND.version}

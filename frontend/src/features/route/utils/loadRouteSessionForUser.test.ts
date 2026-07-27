@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { RouteSession } from '../types';
+import { RouteSessionStatus, type RouteSession } from '../types';
 import { loadRouteSessionForUser } from './loadRouteSessionForUser';
 
 const REMOTE_SESSION: RouteSession = {
@@ -8,6 +8,7 @@ const REMOTE_SESSION: RouteSession = {
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
   updatedAt: new Date('2026-01-01T00:00:00.000Z'),
   deliveries: [],
+  status: RouteSessionStatus.InProgress,
 };
 
 test('usuario con ruta guardada en el backend: devuelve exactamente esa sesión', async () => {

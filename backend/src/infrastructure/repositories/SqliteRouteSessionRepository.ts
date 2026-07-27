@@ -1,8 +1,16 @@
+import { randomUUID } from 'node:crypto';
 import type { Client, Row } from '@libsql/client';
 import type { RouteSession } from '../../domain/RouteSession.js';
 import type { RouteSessionRepository } from '../../domain/RouteSessionRepository.js';
+import { RouteSessionStatus } from '../../domain/RouteSessionStatus.js';
 
-function hasRouteSessionShape(value: unknown): value is RouteSession {
+const ROUTE_SESSION_STATUSES = new Set<string>(Object.values(RouteSessionStatus));
+
+function isRouteSessionStatus(value: unknown): value is RouteSessionStatus {
+  return typeof value === 'string' && ROUTE_SESSION_STATUSES.has(value);
+}
+
+function hasRouteSessionShape(value: unknown): value is Record<string, unknown> {
   if (typeof value !== 'object' || value === null) {
     return false;
   }
@@ -21,12 +29,20 @@ function hasRouteSessionShape(value: unknown): value is RouteSession {
  * se valida que el JSON sea sintácticamente válido y tenga la forma mínima esperada de
  * `RouteSession` antes de confiar en el cast; cualquier otra cosa se trata igual que un parseo
  * fallido (mismo comportamiento que ya existía, ahora también cubre "JSON válido pero con otra
- * forma").
+ * forma"). `status` es un campo agregado después: las sesiones guardadas antes de que existiera
+ * no lo tienen en su JSON — se asume `in_progress` (eran, por definición, la ruta "actual" del
+ * chofer bajo el modelo viejo) en vez de descartar la fila entera.
  */
 function parseSessionJson(sessionJson: string): RouteSession | null {
   try {
     const parsed: unknown = JSON.parse(sessionJson);
-    return hasRouteSessionShape(parsed) ? parsed : null;
+
+    if (!hasRouteSessionShape(parsed)) {
+      return null;
+    }
+
+    const status = isRouteSessionStatus(parsed.status) ? parsed.status : RouteSessionStatus.InProgress;
+    return { id: parsed.id, createdAt: parsed.createdAt, updatedAt: parsed.updatedAt, deliveries: parsed.deliveries, status } as RouteSession;
   } catch {
     return null;
   }
@@ -60,6 +76,14 @@ export class SqliteRouteSessionRepository implements RouteSessionRepository {
             VALUES (?, ?, ?)
             ON CONFLICT(user_id) DO UPDATE SET session_json = excluded.session_json, updated_at = excluded.updated_at`,
       args: [userId, JSON.stringify(session), session.updatedAt],
+    });
+  }
+
+  async archiveFinishedSession(userId: string, session: RouteSession): Promise<void> {
+    await this.client.execute({
+      sql: `INSERT INTO route_session_history (id, user_id, session_json, finished_at)
+            VALUES (?, ?, ?, ?)`,
+      args: [randomUUID(), userId, JSON.stringify(session), session.updatedAt],
     });
   }
 }

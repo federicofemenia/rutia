@@ -1,1 +1,1 @@
-export { fetchRouteSession, pushRouteSession } from './api/routeSessionSync';
+export { fetchRouteSession, finishRouteSession, pushRouteSession } from './api/routeSessionSync';

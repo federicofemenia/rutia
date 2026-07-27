@@ -32,6 +32,8 @@ export interface RouteContextValue {
     customDestination?: CustomDestination,
   ) => void;
   startNewRoute: () => void;
+  /** Cierra la ruta actual (todas las entregas ya resueltas) y la archiva para consultarla después. */
+  finishRoute: () => Promise<RouteSession>;
 }
 
 export const RouteContext = createContext<RouteContextValue | null>(null);

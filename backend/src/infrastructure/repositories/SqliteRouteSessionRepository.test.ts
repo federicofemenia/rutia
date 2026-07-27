@@ -5,6 +5,7 @@ import { runMigrations } from '../database/runMigrations.js';
 import { migrations } from '../database/migrations/migrations.js';
 import type { Company } from '../../domain/Company.js';
 import type { RouteSession } from '../../domain/RouteSession.js';
+import { RouteSessionStatus } from '../../domain/RouteSessionStatus.js';
 import type { User } from '../../domain/User.js';
 import { UserRole } from '../../domain/UserRole.js';
 import { SqliteCompanyRepository } from './SqliteCompanyRepository.js';
@@ -62,6 +63,7 @@ const SAMPLE_SESSION: RouteSession = {
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
   deliveries: [],
+  status: RouteSessionStatus.InProgress,
 };
 
 test('save + findByUserId devuelve la sesión guardada', async () => {
@@ -136,4 +138,40 @@ test('findByUserId devuelve null si session_json es JSON válido pero no tiene f
   const repository = new SqliteRouteSessionRepository(client);
 
   assert.equal(await repository.findByUserId(SAMPLE_USER.id), null);
+});
+
+test('una sesión persistida antes de que existiera "status" se lee como in_progress (compatibilidad)', async () => {
+  const client = await createMigratedClientWithUser();
+  const legacySessionJson = JSON.stringify({
+    id: 'session-legacy',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    deliveries: [],
+  });
+  await client.execute({
+    sql: 'INSERT INTO route_sessions (user_id, session_json, updated_at) VALUES (?, ?, ?)',
+    args: [SAMPLE_USER.id, legacySessionJson, '2026-01-01T00:00:00.000Z'],
+  });
+  const repository = new SqliteRouteSessionRepository(client);
+
+  const found = await repository.findByUserId(SAMPLE_USER.id);
+
+  assert.equal(found?.status, RouteSessionStatus.InProgress);
+});
+
+test('archiveFinishedSession inserta una copia en route_session_history sin pisar nada', async () => {
+  const client = await createMigratedClientWithUser();
+  const repository = new SqliteRouteSessionRepository(client);
+  const finished: RouteSession = { ...SAMPLE_SESSION, status: RouteSessionStatus.Finished };
+
+  await repository.archiveFinishedSession(SAMPLE_USER.id, finished);
+  await repository.archiveFinishedSession(SAMPLE_USER.id, { ...finished, id: 'session-2' });
+
+  const result = await client.execute({
+    sql: 'SELECT user_id, session_json FROM route_session_history WHERE user_id = ? ORDER BY rowid',
+    args: [SAMPLE_USER.id],
+  });
+
+  assert.equal(result.rows.length, 2);
+  assert.deepEqual(JSON.parse(result.rows[0]?.session_json as string), finished);
 });

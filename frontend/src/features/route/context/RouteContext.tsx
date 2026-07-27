@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useState, type ReactNode } from 'react';
 import { useAuth } from '../../auth';
-import { fetchRouteSession, pushRouteSession } from '../../route-sync';
+import { fetchRouteSession, finishRouteSession, pushRouteSession } from '../../route-sync';
 import {
   DeliveryStatus,
   GeocodingStatus,
@@ -10,6 +10,7 @@ import {
   type DeliveryAddress,
   type FailureReasonCode,
   type OptimizeRouteSummary,
+  type RouteSession,
   type RouteSummaryInfo,
 } from '../types';
 import { loadRouteSessionForUser } from '../utils/loadRouteSessionForUser';
@@ -132,6 +133,14 @@ export function RouteProvider({ children }: RouteProviderProps) {
     setRouteSummaryState(null);
   }, []);
 
+  // El backend revalida server-side que no queden entregas sin resolver — si rechaza, se propaga
+  // el error tal cual para que la pantalla lo muestre (nunca se asume éxito de forma optimista).
+  const finishRoute = useCallback(async (): Promise<RouteSession> => {
+    const finished = await finishRouteSession();
+    dispatch({ type: 'RESTORE_SESSION', payload: finished });
+    return finished;
+  }, []);
+
   const value = useMemo(
     () => ({
       session,
@@ -146,6 +155,7 @@ export function RouteProvider({ children }: RouteProviderProps) {
       routeSummary,
       setRouteSummary,
       startNewRoute,
+      finishRoute,
     }),
     [
       session,
@@ -160,6 +170,7 @@ export function RouteProvider({ children }: RouteProviderProps) {
       routeSummary,
       setRouteSummary,
       startNewRoute,
+      finishRoute,
     ],
   );
 

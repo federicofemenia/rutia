@@ -60,4 +60,23 @@ export const migrations: Migration[] = [
       'CREATE INDEX IF NOT EXISTS idx_users_company_role ON users(company_id, role)',
     ],
   },
+  {
+    // `route_sessions` sigue siendo "la ruta actual" del chofer (una fila por usuario, se pisa en
+    // cada guardado — sin cambios). Esta tabla nueva es el archivo histórico: cuando el chofer
+    // toca "Terminar recorrido", se copia ahí una foto de esa sesión, en un registro nuevo que
+    // nunca se pisa — es lo que permite después consultar rutas pasadas. `status` de la sesión
+    // ("in_progress"/"finished") viaja dentro del `session_json` existente (mismo campo agregado a
+    // `RouteSession` en el dominio) — no hace falta una columna nueva en `route_sessions` para eso.
+    id: '0004_create_route_session_history_table',
+    statements: [
+      `CREATE TABLE IF NOT EXISTS route_session_history (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        session_json TEXT NOT NULL,
+        finished_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      )`,
+      'CREATE INDEX IF NOT EXISTS idx_route_session_history_user_id ON route_session_history(user_id)',
+    ],
+  },
 ];

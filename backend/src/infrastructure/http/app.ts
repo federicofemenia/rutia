@@ -4,6 +4,7 @@ import { AuthenticateUser } from '../../application/AuthenticateUser.js';
 import { CreateCompany } from '../../application/CreateCompany.js';
 import { CreateCompanyAdmin } from '../../application/CreateCompanyAdmin.js';
 import { ExtractAddressFromImage } from '../../application/ExtractAddressFromImage.js';
+import { FinishRouteSession } from '../../application/FinishRouteSession.js';
 import { GetCompanyDrivers } from '../../application/GetCompanyDrivers.js';
 import { GetDriverRouteSession } from '../../application/GetDriverRouteSession.js';
 import { GetRouteSession } from '../../application/GetRouteSession.js';
@@ -27,6 +28,7 @@ import { createAuthMiddleware } from './authMiddleware.js';
 import { createCreateCompanyAdminController } from './createCompanyAdminController.js';
 import { createCreateCompanyController } from './createCompanyController.js';
 import { createExtractAddressController } from './extractAddressController.js';
+import { createFinishRouteSessionController } from './finishRouteSessionController.js';
 import { createGetCompanyDriversController } from './getCompanyDriversController.js';
 import { createGetDriverRouteSessionController } from './getDriverRouteSessionController.js';
 import { createGetRouteSessionController } from './getRouteSessionController.js';
@@ -56,6 +58,7 @@ export async function createApp(): Promise<CreatedApp> {
   const authenticateUser = new AuthenticateUser(userRepository, companyRepository, tokenService);
   const saveRouteSession = new SaveRouteSession(routeSessionRepository);
   const getRouteSession = new GetRouteSession(routeSessionRepository);
+  const finishRouteSession = new FinishRouteSession(routeSessionRepository);
   const getDriverRouteSession = new GetDriverRouteSession(userRepository, routeSessionRepository);
   const getCompanyDrivers = new GetCompanyDrivers(userRepository, routeSessionRepository);
   const validateCompanyRegistrationCode = new ValidateCompanyRegistrationCode(
@@ -114,6 +117,7 @@ export async function createApp(): Promise<CreatedApp> {
   app.post('/api/routes/optimize', requireAuth, createOptimizeRouteController(optimizeRoute));
   app.put('/api/route-session', requireAuth, createSaveRouteSessionController(saveRouteSession));
   app.get('/api/route-session', requireAuth, createGetRouteSessionController(getRouteSession));
+  app.post('/api/route-session/finish', requireAuth, createFinishRouteSessionController(finishRouteSession));
   app.get(
     '/api/admin/drivers/:driverId/route-session',
     requireAuth,

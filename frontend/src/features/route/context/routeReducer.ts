@@ -1,6 +1,7 @@
 import {
   DeliveryStatus,
   GeocodingStatus,
+  RouteSessionStatus,
   type Coordinates,
   type Delivery,
   type DeliveryAddress,
@@ -27,6 +28,7 @@ export function createRouteSession(): RouteSession {
     createdAt: now,
     updatedAt: now,
     deliveries: [],
+    status: RouteSessionStatus.InProgress,
   };
 }
 
@@ -37,7 +39,15 @@ function updateDelivery(deliveries: Delivery[], id: string, update: Partial<Deli
 export function routeReducer(state: RouteSession, action: RouteAction): RouteSession {
   switch (action.type) {
     case 'ADD_DELIVERY':
-      return { ...state, deliveries: [...state.deliveries, action.payload], updatedAt: new Date() };
+      return {
+        ...state,
+        deliveries: [...state.deliveries, action.payload],
+        // Si se agrega una entrega a una ruta ya finalizada (ej. "+" en Mi ruta después de
+        // "Terminar recorrido"), deja de estar finalizada — evidentemente el chofer siguió
+        // trabajando en ella. La foto ya archivada en el histórico no se toca.
+        status: RouteSessionStatus.InProgress,
+        updatedAt: new Date(),
+      };
 
     case 'REMOVE_DELIVERY':
       return {
@@ -64,16 +74,26 @@ export function routeReducer(state: RouteSession, action: RouteAction): RouteSes
       };
     }
 
+    // UNDO_START_DELIVERY, COMPLETE_DELIVERY y FAIL_DELIVERY se permiten desde cualquier estado ya
+    // arrancado (InProgress/Delivered/Failed), no solo InProgress — así el chofer puede corregir
+    // un toque equivocado (ej. marcó "entregada" y quería "fallida") sin quedar trabado. Nunca
+    // desde Pending: hay que iniciar el reparto primero. Cada transición limpia los campos del
+    // estado que deja atrás (deliveredAt/failureReason) para no dejar datos de un estado viejo.
     case 'UNDO_START_DELIVERY': {
       const target = state.deliveries.find((delivery) => delivery.id === action.payload.id);
 
-      if (!target || target.status !== DeliveryStatus.InProgress) {
+      if (!target || target.status === DeliveryStatus.Pending) {
         return state;
       }
 
       return {
         ...state,
-        deliveries: updateDelivery(state.deliveries, action.payload.id, { status: DeliveryStatus.Pending }),
+        deliveries: updateDelivery(state.deliveries, action.payload.id, {
+          status: DeliveryStatus.Pending,
+          deliveredAt: undefined,
+          failureReasonCode: undefined,
+          failureReasonDetail: undefined,
+        }),
         updatedAt: new Date(),
       };
     }
@@ -81,7 +101,7 @@ export function routeReducer(state: RouteSession, action: RouteAction): RouteSes
     case 'COMPLETE_DELIVERY': {
       const target = state.deliveries.find((delivery) => delivery.id === action.payload.id);
 
-      if (!target || target.status !== DeliveryStatus.InProgress) {
+      if (!target || target.status === DeliveryStatus.Pending) {
         return state;
       }
 
@@ -90,6 +110,8 @@ export function routeReducer(state: RouteSession, action: RouteAction): RouteSes
         deliveries: updateDelivery(state.deliveries, action.payload.id, {
           status: DeliveryStatus.Delivered,
           deliveredAt: new Date().toISOString(),
+          failureReasonCode: undefined,
+          failureReasonDetail: undefined,
         }),
         updatedAt: new Date(),
       };
@@ -98,7 +120,7 @@ export function routeReducer(state: RouteSession, action: RouteAction): RouteSes
     case 'FAIL_DELIVERY': {
       const target = state.deliveries.find((delivery) => delivery.id === action.payload.id);
 
-      if (!target || target.status !== DeliveryStatus.InProgress) {
+      if (!target || target.status === DeliveryStatus.Pending) {
         return state;
       }
 
@@ -108,6 +130,7 @@ export function routeReducer(state: RouteSession, action: RouteAction): RouteSes
           status: DeliveryStatus.Failed,
           failureReasonCode: action.payload.failureReasonCode,
           failureReasonDetail: action.payload.failureReasonDetail,
+          deliveredAt: undefined,
         }),
         updatedAt: new Date(),
       };

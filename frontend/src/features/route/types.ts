@@ -49,6 +49,13 @@ export const FailureReasonCode = {
 
 export type FailureReasonCode = (typeof FailureReasonCode)[keyof typeof FailureReasonCode];
 
+export const RouteSessionStatus = {
+  InProgress: 'in_progress',
+  Finished: 'finished',
+} as const;
+
+export type RouteSessionStatus = (typeof RouteSessionStatus)[keyof typeof RouteSessionStatus];
+
 export interface Delivery {
   id: string;
   address: DeliveryAddress;
@@ -66,6 +73,7 @@ export interface RouteSession {
   createdAt: Date;
   updatedAt: Date;
   deliveries: Delivery[];
+  status: RouteSessionStatus;
 }
 
 /** Un tramo del recorrido devuelto por Google Routes — nunca se recalcula en el frontend. */

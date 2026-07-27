@@ -1,5 +1,6 @@
 export { DeliveryActionsSheet } from './components/DeliveryActionsSheet';
 export { DeliveryGroupCard } from './components/DeliveryGroupCard';
+export { FinishRouteDialog } from './components/FinishRouteDialog';
 export { DeliveryListItem } from './components/DeliveryListItem';
 export { DeliveryStatusChip } from './components/DeliveryStatusChip';
 export { RouteOverviewCard } from './components/RouteOverviewCard';
@@ -11,7 +12,7 @@ export { RouteProvider } from './context/RouteContext';
 export { useOptimizeRoute } from './hooks/useOptimizeRoute';
 export { useRoute } from './hooks/useRoute';
 export type { OptimizeRouteParams, OptimizeRouteResult, OptimizeRouteStats } from './api/optimizeRoute';
-export { DeliveryStatus, FailureReasonCode, GeocodingStatus } from './types';
+export { DeliveryStatus, FailureReasonCode, GeocodingStatus, RouteSessionStatus } from './types';
 export type {
   Coordinates,
   CustomDestination,

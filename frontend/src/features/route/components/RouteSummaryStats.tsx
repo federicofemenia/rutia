@@ -6,9 +6,13 @@ import { summarizeDeliveries } from '../utils/summarizeDeliveries';
 
 interface RouteSummaryStatsProps {
   deliveries: Delivery[];
+  /** Estado por el que está filtrando la lista de abajo; `null` = sin filtro (se ve todo). */
+  selectedStatus?: DeliveryStatus | null;
+  /** Tocar un chip ya seleccionado lo desactiva (vuelve a mostrar todo). */
+  onSelectStatus?: (status: DeliveryStatus | null) => void;
 }
 
-export function RouteSummaryStats({ deliveries }: RouteSummaryStatsProps) {
+export function RouteSummaryStats({ deliveries, selectedStatus = null, onSelectStatus }: RouteSummaryStatsProps) {
   const counts = summarizeDeliveries(deliveries);
   const delivered = counts[DeliveryStatus.Delivered];
 
@@ -19,6 +23,8 @@ export function RouteSummaryStats({ deliveries }: RouteSummaryStatsProps) {
         {Object.values(DeliveryStatus).map((status) => {
           const config = DELIVERY_STATUS_CONFIG[status];
           const Icon = config.icon;
+          const isSelected = selectedStatus === status;
+
           return (
             <Chip
               key={status}
@@ -26,7 +32,8 @@ export function RouteSummaryStats({ deliveries }: RouteSummaryStatsProps) {
               label={counts[status]}
               color={config.color}
               size="small"
-              variant="outlined"
+              variant={isSelected ? 'filled' : 'outlined'}
+              onClick={onSelectStatus ? () => onSelectStatus(isSelected ? null : status) : undefined}
             />
           );
         })}

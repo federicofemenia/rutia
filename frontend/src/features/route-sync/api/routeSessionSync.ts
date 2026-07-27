@@ -1,6 +1,6 @@
 import { authFetch } from '../../auth';
 import type { RouteSession } from '../../route';
-import { parseRouteSessionResponse } from '../utils/parseRouteSessionResponse';
+import { parseFinishRouteSessionResponse, parseRouteSessionResponse } from '../utils/parseRouteSessionResponse';
 
 /**
  * El backend (`GET`/`PUT /api/route-session`, scopeado por el usuario autenticado vía el token)
@@ -25,4 +25,10 @@ export async function pushRouteSession(session: RouteSession): Promise<void> {
 export async function fetchRouteSession(): Promise<RouteSession | null> {
   const response = await authFetch(`${API_URL}/api/route-session`);
   return parseRouteSessionResponse(response);
+}
+
+/** El backend revalida server-side que no queden entregas sin resolver antes de finalizar. */
+export async function finishRouteSession(): Promise<RouteSession> {
+  const response = await authFetch(`${API_URL}/api/route-session/finish`, { method: 'POST' });
+  return parseFinishRouteSessionResponse(response);
 }
