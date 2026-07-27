@@ -1,14 +1,16 @@
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined';
 import { Alert, Skeleton, Stack, Typography } from '@mui/material';
 import { useParams } from 'react-router-dom';
+import { useAuth } from '../../features/auth';
 import { DriverHistoryAccordion, InProgressRouteAccordion, useDriverHistory } from '../../features/driverHistory';
 import { RouteSessionStatus } from '../../features/route';
 import { useDriverTracking } from '../../features/tracking';
-import { AppLayout } from '../../shared/components';
+import { AppBrandHeader, AppLayout } from '../../shared/components';
 import { getDriverTrackingNavItems } from '../../shared/config/bottomNavItems';
 
 export function AdminDriverHistoryPage() {
   const { driverId = '' } = useParams<{ driverId: string }>();
+  const { logout } = useAuth();
   const { data } = useDriverTracking(driverId);
   const { status, history, errorMessage } = useDriverHistory(driverId);
 
@@ -22,6 +24,7 @@ export function AdminDriverHistoryPage() {
   return (
     <AppLayout
       title={driverName ? `Historial: ${driverName}` : 'Historial'}
+      header={<AppBrandHeader onLogout={logout} menuItems={[]} />}
       bottomNavItems={getDriverTrackingNavItems(driverId)}
     >
       <Typography component="h1" variant="h5" sx={{ fontWeight: 800 }}>

@@ -12,7 +12,7 @@ import {
   Typography,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { buildTrackingPath } from '../../app/router/routes';
+import { buildTrackingHistoryPath } from '../../app/router/routes';
 import { useAuth, UserRole } from '../../features/auth';
 import { useCompanyDriversOverview, type CompanyDriver } from '../../features/tracking';
 import { AppBrandHeader, AppLayout, IconBadge, StatCard } from '../../shared/components';
@@ -88,7 +88,7 @@ export function AdminHomePage() {
                 <ListItemButton
                   key={driver.id}
                   divider
-                  onClick={() => navigate(buildTrackingPath(driver.id))}
+                  onClick={() => navigate(buildTrackingHistoryPath(driver.id))}
                   sx={{ gap: 1.5, py: 1.5 }}
                 >
                   <IconBadge

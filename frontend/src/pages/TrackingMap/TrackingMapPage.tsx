@@ -1,12 +1,14 @@
 import { Alert, Box, CircularProgress, Stack, Typography } from '@mui/material';
 import { useParams } from 'react-router-dom';
+import { useAuth } from '../../features/auth';
 import { DeliveryMap, hasCoordinates } from '../../features/map';
 import { useDriverTracking } from '../../features/tracking';
-import { AppLayout } from '../../shared/components';
+import { AppBrandHeader, AppLayout } from '../../shared/components';
 import { getDriverTrackingNavItems } from '../../shared/config/bottomNavItems';
 
 export function TrackingMapPage() {
   const { driverId = '' } = useParams<{ driverId: string }>();
+  const { logout } = useAuth();
   const { status, data, errorMessage } = useDriverTracking(driverId);
 
   const driverName = data?.driver.name ?? '';
@@ -14,7 +16,11 @@ export function TrackingMapPage() {
   const missingCoordinatesCount = deliveries.filter((delivery) => !hasCoordinates(delivery)).length;
 
   return (
-    <AppLayout title={driverName ? `Mapa: ${driverName}` : 'Mapa'} bottomNavItems={getDriverTrackingNavItems(driverId)}>
+    <AppLayout
+      title={driverName ? `Mapa: ${driverName}` : 'Mapa'}
+      header={<AppBrandHeader onLogout={logout} menuItems={[]} />}
+      bottomNavItems={getDriverTrackingNavItems(driverId)}
+    >
       <Typography variant="h6">{driverName ? `Envíos de ${driverName}` : 'Envíos del chofer'}</Typography>
 
       {status === 'loading' && !data && (
