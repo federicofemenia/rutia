@@ -16,6 +16,8 @@ interface UseDeliveryCaptureResult {
   captureAndExtract: () => Promise<void>;
   retry: () => Promise<void>;
   confirmDelivery: (selection: PlaceSelection) => void;
+  /** Descarta el draft en revisión (dirección mal leída/ambigua) y vuelve a la cámara sin cargar nada. */
+  cancelReview: () => void;
 }
 
 export function useDeliveryCapture(): UseDeliveryCaptureResult {
@@ -112,6 +114,13 @@ export function useDeliveryCapture(): UseDeliveryCaptureResult {
     await runExtraction(photo);
   }, [captureAndExtract, runExtraction]);
 
+  const cancelReview = useCallback(() => {
+    setDraft(null);
+    setErrorMessage(null);
+    capturedPhotoRef.current = null;
+    setPhase(ScannerPhase.Capturing);
+  }, []);
+
   return {
     phase,
     videoRef,
@@ -123,5 +132,6 @@ export function useDeliveryCapture(): UseDeliveryCaptureResult {
     captureAndExtract,
     retry,
     confirmDelivery: addDeliveryFromSelection,
+    cancelReview,
   };
 }
