@@ -6,6 +6,8 @@ import { CreateCompanyAdmin } from '../../application/CreateCompanyAdmin.js';
 import { ExtractAddressFromImage } from '../../application/ExtractAddressFromImage.js';
 import { FinishRouteSession } from '../../application/FinishRouteSession.js';
 import { GetCompanyDrivers } from '../../application/GetCompanyDrivers.js';
+import { GetDriverRouteHistory } from '../../application/GetDriverRouteHistory.js';
+import { GetDriverRouteHistoryDetail } from '../../application/GetDriverRouteHistoryDetail.js';
 import { GetDriverRouteSession } from '../../application/GetDriverRouteSession.js';
 import { GetRouteSession } from '../../application/GetRouteSession.js';
 import { OptimizeRoute } from '../../application/OptimizeRoute.js';
@@ -30,6 +32,8 @@ import { createCreateCompanyController } from './createCompanyController.js';
 import { createExtractAddressController } from './extractAddressController.js';
 import { createFinishRouteSessionController } from './finishRouteSessionController.js';
 import { createGetCompanyDriversController } from './getCompanyDriversController.js';
+import { createGetDriverRouteHistoryController } from './getDriverRouteHistoryController.js';
+import { createGetDriverRouteHistoryDetailController } from './getDriverRouteHistoryDetailController.js';
 import { createGetDriverRouteSessionController } from './getDriverRouteSessionController.js';
 import { createGetRouteSessionController } from './getRouteSessionController.js';
 import { createLoginController } from './loginController.js';
@@ -60,6 +64,8 @@ export async function createApp(): Promise<CreatedApp> {
   const getRouteSession = new GetRouteSession(routeSessionRepository);
   const finishRouteSession = new FinishRouteSession(routeSessionRepository);
   const getDriverRouteSession = new GetDriverRouteSession(userRepository, routeSessionRepository);
+  const getDriverRouteHistory = new GetDriverRouteHistory(routeSessionRepository);
+  const getDriverRouteHistoryDetail = new GetDriverRouteHistoryDetail(routeSessionRepository);
   const getCompanyDrivers = new GetCompanyDrivers(userRepository, routeSessionRepository);
   const validateCompanyRegistrationCode = new ValidateCompanyRegistrationCode(
     companyRepository,
@@ -118,6 +124,12 @@ export async function createApp(): Promise<CreatedApp> {
   app.put('/api/route-session', requireAuth, createSaveRouteSessionController(saveRouteSession));
   app.get('/api/route-session', requireAuth, createGetRouteSessionController(getRouteSession));
   app.post('/api/route-session/finish', requireAuth, createFinishRouteSessionController(finishRouteSession));
+  app.get('/api/driver/history', requireAuth, createGetDriverRouteHistoryController(getDriverRouteHistory));
+  app.get(
+    '/api/driver/history/:id',
+    requireAuth,
+    createGetDriverRouteHistoryDetailController(getDriverRouteHistoryDetail),
+  );
   app.get(
     '/api/admin/drivers/:driverId/route-session',
     requireAuth,

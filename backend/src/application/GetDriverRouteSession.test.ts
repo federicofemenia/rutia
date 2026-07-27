@@ -53,6 +53,14 @@ class StubRouteSessionRepository implements RouteSessionRepository {
   async archiveFinishedSession(): Promise<void> {
     throw new Error('no usado en este test');
   }
+
+  async findHistoryByUserId(): Promise<never[]> {
+    throw new Error('no usado en este test');
+  }
+
+  async findHistoryEntryById(): Promise<null> {
+    throw new Error('no usado en este test');
+  }
 }
 
 function buildDriver(overrides: Partial<User> = {}): User {

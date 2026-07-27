@@ -8,9 +8,11 @@ import { DeliveryMap, hasCoordinates } from '../../features/map';
 import { NavigationDialog, type NavigationDestination } from '../../features/navigation';
 import { DeliveryActionsSheet, formatFullAddress, type Delivery, useRoute } from '../../features/route';
 import { AppBrandHeader, AppLayout } from '../../shared/components';
+import { useDriverMenuItems } from '../../shared/hooks/useDriverMenuItems';
 
 export function MapPage() {
   const { logout } = useAuth();
+  const menuItems = useDriverMenuItems();
   const { session, routeSummary } = useRoute();
   const missingCoordinatesCount = session.deliveries.filter((delivery) => !hasCoordinates(delivery)).length;
   const { status, coordinates, errorMessage, requestLocation } = useCurrentLocation();
@@ -22,7 +24,7 @@ export function MapPage() {
     : null;
 
   return (
-    <AppLayout title="Mapa" header={<AppBrandHeader onLogout={logout} />}>
+    <AppLayout title="Mapa" header={<AppBrandHeader onLogout={logout} menuItems={menuItems} />}>
       <Typography component="h1" variant="h5" sx={{ fontWeight: 800 }}>
         Mapa
       </Typography>

@@ -23,6 +23,14 @@ class StubRouteSessionRepository implements RouteSessionRepository {
   async archiveFinishedSession(_userId: string, session: RouteSession): Promise<void> {
     this.archived = session;
   }
+
+  async findHistoryByUserId(): Promise<never[]> {
+    throw new Error('no usado en este test');
+  }
+
+  async findHistoryEntryById(): Promise<null> {
+    throw new Error('no usado en este test');
+  }
 }
 
 function buildSession(statuses: DeliveryStatus[]): RouteSession {

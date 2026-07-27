@@ -1,4 +1,5 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { DriverHistoryPage } from '../../pages/DriverHistory';
 import { DriverRegistrationPage } from '../../pages/DriverRegistration';
 import { LoginPage } from '../../pages/Login';
 import { MapPage } from '../../pages/Map';
@@ -21,6 +22,7 @@ export function AppRouter() {
           <Route path={ROUTES.scan} element={<ScanPage />} />
           <Route path={ROUTES.routeSummary} element={<RouteSummaryPage />} />
           <Route path={ROUTES.map} element={<MapPage />} />
+          <Route path={ROUTES.driverHistory} element={<DriverHistoryPage />} />
           <Route path={ROUTES.tracking} element={<TrackingPage />} />
           <Route path={ROUTES.trackingMap} element={<TrackingMapPage />} />
         </Route>

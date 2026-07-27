@@ -6,9 +6,11 @@ import { PlacesAutocompleteInput } from '../../features/places';
 import { useRoute } from '../../features/route';
 import { DeliveryReviewCard, ScannerPhase, useDeliveryCapture } from '../../features/scanner';
 import { AppBrandHeader, AppLayout } from '../../shared/components';
+import { useDriverMenuItems } from '../../shared/hooks/useDriverMenuItems';
 
 export function ScanPage() {
   const { logout } = useAuth();
+  const menuItems = useDriverMenuItems();
   const {
     phase,
     videoRef,
@@ -20,13 +22,14 @@ export function ScanPage() {
     captureAndExtract,
     retry,
     confirmDelivery,
+    cancelReview,
   } = useDeliveryCapture();
   const { session } = useRoute();
   const deliveryCount = session.deliveries.length;
   const [isManualEntry, setIsManualEntry] = useState(false);
 
   return (
-    <AppLayout title="Escanear" header={<AppBrandHeader onLogout={logout} />}>
+    <AppLayout title="Escanear" header={<AppBrandHeader onLogout={logout} menuItems={menuItems} />}>
       {!isManualEntry && (
         <CameraFeed
           videoRef={videoRef}
@@ -95,7 +98,15 @@ export function ScanPage() {
       )}
 
       {!isManualEntry && phase === ScannerPhase.Reviewing && draft && (
-        <DeliveryReviewCard value={draft} onConfirm={confirmDelivery} />
+        <Stack spacing={1} sx={{ alignItems: 'center' }}>
+          {/* Arriba de la card a propósito: el desplegable de sugerencias de Places es un Popper
+              flotante que se abre hacia abajo del input y puede crecer bastante (varias
+              sugerencias) — abajo, cualquier margen fijo eventualmente queda tapado. */}
+          <Button variant="text" onClick={cancelReview} sx={{ textTransform: 'none' }}>
+            Cancelar y volver a escanear
+          </Button>
+          <DeliveryReviewCard value={draft} onConfirm={confirmDelivery} />
+        </Stack>
       )}
 
       {!isManualEntry && phase !== ScannerPhase.Reviewing && (

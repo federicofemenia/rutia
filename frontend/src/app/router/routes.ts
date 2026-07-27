@@ -5,6 +5,7 @@ export const ROUTES = {
   scan: '/scan',
   routeSummary: '/route-summary',
   map: '/map',
+  driverHistory: '/mis-entregas',
   tracking: '/tracking/:driverId',
   trackingMap: '/tracking/:driverId/map',
 } as const;

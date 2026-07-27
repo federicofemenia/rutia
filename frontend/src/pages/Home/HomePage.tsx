@@ -7,6 +7,7 @@ import { useAuth } from '../../features/auth';
 import { DeliveryStatus, RouteSessionStatus, summarizeDeliveries, useRoute } from '../../features/route';
 import { AppBrandHeader, AppLayout, IconBadge, StatCard } from '../../shared/components';
 import { BRAND } from '../../shared/config/brand';
+import { useDriverMenuItems } from '../../shared/hooks/useDriverMenuItems';
 
 function getInitials(name: string): string {
   const initials = name
@@ -24,6 +25,7 @@ export function HomePage() {
   const navigate = useNavigate();
   const { session, startNewRoute } = useRoute();
   const { user, logout } = useAuth();
+  const menuItems = useDriverMenuItems();
 
   // Una ruta ya finalizada ("Terminar recorrido") no cuenta como activa acá, aunque sus entregas
   // sigan en `session.deliveries` hasta el próximo escaneo — así el próximo escaneo arranca una
@@ -45,7 +47,7 @@ export function HomePage() {
   const progressPercent = total > 0 ? Math.round((delivered / total) * 100) : 0;
 
   return (
-    <AppLayout title="Inicio" header={<AppBrandHeader onLogout={logout} />}>
+    <AppLayout title="Inicio" header={<AppBrandHeader onLogout={logout} menuItems={menuItems} />}>
       {user && (
         <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
           <Avatar sx={{ bgcolor: 'primary.main', fontWeight: 700 }}>{getInitials(user.name)}</Avatar>

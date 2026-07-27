@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Client, Row } from '@libsql/client';
 import type { RouteSession } from '../../domain/RouteSession.js';
+import type { RouteSessionHistoryEntry } from '../../domain/RouteSessionHistoryEntry.js';
 import type { RouteSessionRepository } from '../../domain/RouteSessionRepository.js';
 import { RouteSessionStatus } from '../../domain/RouteSessionStatus.js';
 
@@ -58,6 +59,18 @@ function toRouteSession(row: Row): RouteSession | null {
   return parseSessionJson(sessionJson);
 }
 
+/** Igual criterio defensivo que `toRouteSession`: una fila corrupta se descarta, no rompe la consulta entera. */
+function toHistoryEntry(row: Row): RouteSessionHistoryEntry | null {
+  const { id, session_json: sessionJson, finished_at: finishedAt } = row;
+
+  if (typeof id !== 'string' || typeof sessionJson !== 'string' || typeof finishedAt !== 'string') {
+    throw new Error('Fila de "route_session_history" con columnas no textuales.');
+  }
+
+  const session = parseSessionJson(sessionJson);
+  return session ? { id, finishedAt, session } : null;
+}
+
 export class SqliteRouteSessionRepository implements RouteSessionRepository {
   constructor(private readonly client: Client) {}
 
@@ -85,5 +98,26 @@ export class SqliteRouteSessionRepository implements RouteSessionRepository {
             VALUES (?, ?, ?, ?)`,
       args: [randomUUID(), userId, JSON.stringify(session), session.updatedAt],
     });
+  }
+
+  async findHistoryByUserId(userId: string): Promise<RouteSessionHistoryEntry[]> {
+    const result = await this.client.execute({
+      sql: 'SELECT id, session_json, finished_at FROM route_session_history WHERE user_id = ? ORDER BY finished_at DESC',
+      args: [userId],
+    });
+
+    return result.rows
+      .map((row) => toHistoryEntry(row))
+      .filter((entry): entry is RouteSessionHistoryEntry => entry !== null);
+  }
+
+  async findHistoryEntryById(id: string, userId: string): Promise<RouteSessionHistoryEntry | null> {
+    const result = await this.client.execute({
+      sql: 'SELECT id, session_json, finished_at FROM route_session_history WHERE id = ? AND user_id = ?',
+      args: [id, userId],
+    });
+
+    const row = result.rows[0];
+    return row ? toHistoryEntry(row) : null;
   }
 }

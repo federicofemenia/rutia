@@ -1,4 +1,4 @@
-export { AppBrandHeader } from './AppBrandHeader';
+export { AppBrandHeader, type AppMenuItem } from './AppBrandHeader';
 export { AppHeader } from './AppHeader';
 export { AppLayout } from './AppLayout';
 export { BottomNav } from './BottomNav';

@@ -26,10 +26,12 @@ import {
   useRoute,
 } from '../../features/route';
 import { AppBrandHeader, AppLayout } from '../../shared/components';
+import { useDriverMenuItems } from '../../shared/hooks/useDriverMenuItems';
 
 export function RouteSummaryPage() {
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const menuItems = useDriverMenuItems();
   const { session, routeSummary, startDelivery, removeDelivery, finishRoute } = useRoute();
   const { isDialogOpen, openOptimizeDialog, closeOptimizeDialog, handleOptimized } = useOptimizeDeliveries();
   const reoptimizeAfterDelete = useReoptimizeAfterDelete();
@@ -82,7 +84,7 @@ export function RouteSummaryPage() {
     );
 
   return (
-    <AppLayout title="Entregas" header={<AppBrandHeader onLogout={logout} />}>
+    <AppLayout title="Entregas" header={<AppBrandHeader onLogout={logout} menuItems={menuItems} />}>
       <Stack direction="row" sx={{ alignItems: 'center' }}>
         <Box sx={{ flexGrow: 1 }}>
           <Typography component="h1" variant="h5" sx={{ fontWeight: 800 }}>

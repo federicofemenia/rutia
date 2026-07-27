@@ -175,3 +175,91 @@ test('archiveFinishedSession inserta una copia en route_session_history sin pisa
   assert.equal(result.rows.length, 2);
   assert.deepEqual(JSON.parse(result.rows[0]?.session_json as string), finished);
 });
+
+test('findHistoryByUserId devuelve una lista vacía si el usuario no tiene histórico', async () => {
+  const client = await createMigratedClientWithUser();
+  const repository = new SqliteRouteSessionRepository(client);
+
+  assert.deepEqual(await repository.findHistoryByUserId(SAMPLE_USER.id), []);
+});
+
+test('findHistoryByUserId devuelve las entradas del usuario, más reciente primero', async () => {
+  const client = await createMigratedClientWithUser();
+  const repository = new SqliteRouteSessionRepository(client);
+  const older: RouteSession = { ...SAMPLE_SESSION, id: 'session-older', status: RouteSessionStatus.Finished };
+  const newer: RouteSession = { ...SAMPLE_SESSION, id: 'session-newer', status: RouteSessionStatus.Finished };
+
+  await client.execute({
+    sql: 'INSERT INTO route_session_history (id, user_id, session_json, finished_at) VALUES (?, ?, ?, ?)',
+    args: ['history-1', SAMPLE_USER.id, JSON.stringify(older), '2026-01-01T00:00:00.000Z'],
+  });
+  await client.execute({
+    sql: 'INSERT INTO route_session_history (id, user_id, session_json, finished_at) VALUES (?, ?, ?, ?)',
+    args: ['history-2', SAMPLE_USER.id, JSON.stringify(newer), '2026-01-02T00:00:00.000Z'],
+  });
+
+  const history = await repository.findHistoryByUserId(SAMPLE_USER.id);
+
+  assert.deepEqual(
+    history.map((entry) => entry.id),
+    ['history-2', 'history-1'],
+  );
+  assert.deepEqual(history[0]?.session, newer);
+});
+
+test('findHistoryByUserId de un usuario nunca devuelve el histórico de otro', async () => {
+  const client = await createMigratedClientWithUser();
+  const repository = new SqliteRouteSessionRepository(client);
+
+  await client.execute({
+    sql: 'INSERT INTO route_session_history (id, user_id, session_json, finished_at) VALUES (?, ?, ?, ?)',
+    args: ['history-other', OTHER_USER.id, JSON.stringify(SAMPLE_SESSION), '2026-01-01T00:00:00.000Z'],
+  });
+
+  assert.deepEqual(await repository.findHistoryByUserId(SAMPLE_USER.id), []);
+  assert.equal((await repository.findHistoryByUserId(OTHER_USER.id)).length, 1);
+});
+
+test('findHistoryByUserId descarta filas con session_json corrupto sin romper la consulta entera', async () => {
+  const client = await createMigratedClientWithUser();
+  const repository = new SqliteRouteSessionRepository(client);
+
+  await client.execute({
+    sql: 'INSERT INTO route_session_history (id, user_id, session_json, finished_at) VALUES (?, ?, ?, ?)',
+    args: ['history-corrupt', SAMPLE_USER.id, '{not valid json', '2026-01-01T00:00:00.000Z'],
+  });
+  await client.execute({
+    sql: 'INSERT INTO route_session_history (id, user_id, session_json, finished_at) VALUES (?, ?, ?, ?)',
+    args: ['history-ok', SAMPLE_USER.id, JSON.stringify(SAMPLE_SESSION), '2026-01-02T00:00:00.000Z'],
+  });
+
+  const history = await repository.findHistoryByUserId(SAMPLE_USER.id);
+
+  assert.deepEqual(
+    history.map((entry) => entry.id),
+    ['history-ok'],
+  );
+});
+
+test('findHistoryEntryById devuelve la entrada solo si pertenece al usuario', async () => {
+  const client = await createMigratedClientWithUser();
+  const repository = new SqliteRouteSessionRepository(client);
+
+  await client.execute({
+    sql: 'INSERT INTO route_session_history (id, user_id, session_json, finished_at) VALUES (?, ?, ?, ?)',
+    args: ['history-1', SAMPLE_USER.id, JSON.stringify(SAMPLE_SESSION), '2026-01-01T00:00:00.000Z'],
+  });
+
+  const found = await repository.findHistoryEntryById('history-1', SAMPLE_USER.id);
+  assert.deepEqual(found, { id: 'history-1', finishedAt: '2026-01-01T00:00:00.000Z', session: SAMPLE_SESSION });
+
+  // Mismo id, pero pedido por otro usuario: nunca debe encontrarlo.
+  assert.equal(await repository.findHistoryEntryById('history-1', OTHER_USER.id), null);
+});
+
+test('findHistoryEntryById devuelve null si el id no existe', async () => {
+  const client = await createMigratedClientWithUser();
+  const repository = new SqliteRouteSessionRepository(client);
+
+  assert.equal(await repository.findHistoryEntryById('id-inexistente', SAMPLE_USER.id), null);
+});

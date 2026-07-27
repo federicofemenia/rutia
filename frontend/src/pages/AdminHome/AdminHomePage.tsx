@@ -37,7 +37,7 @@ export function AdminHomePage() {
   const sortedDrivers = sortDrivers(drivers);
 
   return (
-    <AppLayout title="Panel" header={<AppBrandHeader onLogout={logout} />} bottomNavItems={HOME_ONLY_NAV_ITEMS}>
+    <AppLayout title="Panel" header={<AppBrandHeader onLogout={logout} menuItems={[]} />} bottomNavItems={HOME_ONLY_NAV_ITEMS}>
       {user && (
         <Box>
           <Typography variant="body2" color="text.secondary">
