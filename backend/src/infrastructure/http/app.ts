@@ -5,6 +5,8 @@ import { CreateCompany } from '../../application/CreateCompany.js';
 import { CreateCompanyAdmin } from '../../application/CreateCompanyAdmin.js';
 import { ExtractAddressFromImage } from '../../application/ExtractAddressFromImage.js';
 import { FinishRouteSession } from '../../application/FinishRouteSession.js';
+import { GetAdminDriverRouteHistory } from '../../application/GetAdminDriverRouteHistory.js';
+import { GetAdminDriverRouteHistoryDetail } from '../../application/GetAdminDriverRouteHistoryDetail.js';
 import { GetCompanyDrivers } from '../../application/GetCompanyDrivers.js';
 import { GetDriverRouteHistory } from '../../application/GetDriverRouteHistory.js';
 import { GetDriverRouteHistoryDetail } from '../../application/GetDriverRouteHistoryDetail.js';
@@ -31,6 +33,8 @@ import { createCreateCompanyAdminController } from './createCompanyAdminControll
 import { createCreateCompanyController } from './createCompanyController.js';
 import { createExtractAddressController } from './extractAddressController.js';
 import { createFinishRouteSessionController } from './finishRouteSessionController.js';
+import { createGetAdminDriverRouteHistoryController } from './getAdminDriverRouteHistoryController.js';
+import { createGetAdminDriverRouteHistoryDetailController } from './getAdminDriverRouteHistoryDetailController.js';
 import { createGetCompanyDriversController } from './getCompanyDriversController.js';
 import { createGetDriverRouteHistoryController } from './getDriverRouteHistoryController.js';
 import { createGetDriverRouteHistoryDetailController } from './getDriverRouteHistoryDetailController.js';
@@ -66,6 +70,8 @@ export async function createApp(): Promise<CreatedApp> {
   const getDriverRouteSession = new GetDriverRouteSession(userRepository, routeSessionRepository);
   const getDriverRouteHistory = new GetDriverRouteHistory(routeSessionRepository);
   const getDriverRouteHistoryDetail = new GetDriverRouteHistoryDetail(routeSessionRepository);
+  const getAdminDriverRouteHistory = new GetAdminDriverRouteHistory(userRepository, routeSessionRepository);
+  const getAdminDriverRouteHistoryDetail = new GetAdminDriverRouteHistoryDetail(userRepository, routeSessionRepository);
   const getCompanyDrivers = new GetCompanyDrivers(userRepository, routeSessionRepository);
   const validateCompanyRegistrationCode = new ValidateCompanyRegistrationCode(
     companyRepository,
@@ -135,6 +141,18 @@ export async function createApp(): Promise<CreatedApp> {
     requireAuth,
     requireRole(UserRole.SuperAdmin, UserRole.CompanyAdmin),
     createGetDriverRouteSessionController(getDriverRouteSession),
+  );
+  app.get(
+    '/api/admin/drivers/:driverId/history',
+    requireAuth,
+    requireRole(UserRole.SuperAdmin, UserRole.CompanyAdmin),
+    createGetAdminDriverRouteHistoryController(getAdminDriverRouteHistory),
+  );
+  app.get(
+    '/api/admin/drivers/:driverId/history/:id',
+    requireAuth,
+    requireRole(UserRole.SuperAdmin, UserRole.CompanyAdmin),
+    createGetAdminDriverRouteHistoryDetailController(getAdminDriverRouteHistoryDetail),
   );
 
   app.get(

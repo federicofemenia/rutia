@@ -10,8 +10,12 @@ interface RawDriverHistoryDetail {
   session: { deliveries: Delivery[] };
 }
 
-export async function fetchDriverHistoryDetail(id: string): Promise<DriverHistoryDetail> {
-  const response = await authFetch(`${API_URL}/api/driver/history/${encodeURIComponent(id)}`);
+/** Sin `driverId`: el propio historial del chofer autenticado. Con `driverId`: vista de admin sobre ese chofer. */
+export async function fetchDriverHistoryDetail(id: string, driverId?: string): Promise<DriverHistoryDetail> {
+  const url = driverId
+    ? `${API_URL}/api/admin/drivers/${encodeURIComponent(driverId)}/history/${encodeURIComponent(id)}`
+    : `${API_URL}/api/driver/history/${encodeURIComponent(id)}`;
+  const response = await authFetch(url);
 
   if (!response.ok) {
     const data = (await response.json().catch(() => null)) as { error?: string } | null;

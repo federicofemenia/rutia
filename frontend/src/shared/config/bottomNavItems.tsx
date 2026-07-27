@@ -1,8 +1,9 @@
+import HistoryIcon from '@mui/icons-material/History';
 import HomeIcon from '@mui/icons-material/Home';
 import MapIcon from '@mui/icons-material/Map';
 import RouteIcon from '@mui/icons-material/Route';
 import type { ReactNode } from 'react';
-import { buildTrackingMapPath, ROUTES } from '../../app/router/routes';
+import { buildTrackingHistoryPath, buildTrackingMapPath, ROUTES } from '../../app/router/routes';
 
 export interface BottomNavItem {
   label: string;
@@ -22,11 +23,13 @@ export const HOME_ONLY_NAV_ITEMS: BottomNavItem[] = BOTTOM_NAV_ITEMS.filter((ite
 
 /**
  * Nav del admin mientras mira el seguimiento de un chofer puntual: "Inicio" vuelve al panel,
- * "Mapa" muestra las entregas de ESE chofer como pines — nunca "Mi ruta" (el admin no reparte).
+ * "Mapa" muestra las entregas de ESE chofer como pines, "Historial" el histórico de rutas ya
+ * terminadas — nunca "Mi ruta" (el admin no reparte).
  */
 export function getDriverTrackingNavItems(driverId: string): BottomNavItem[] {
   return [
     { label: 'Inicio', path: ROUTES.home, icon: <HomeIcon /> },
     { label: 'Mapa', path: buildTrackingMapPath(driverId), icon: <MapIcon /> },
+    { label: 'Historial', path: buildTrackingHistoryPath(driverId), icon: <HistoryIcon /> },
   ];
 }

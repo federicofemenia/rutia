@@ -1,36 +1,20 @@
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  Alert,
-  Chip,
-  CircularProgress,
-  List,
-  ListItem,
-  ListItemText,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Accordion, AccordionDetails, AccordionSummary, Alert, Chip, CircularProgress, Stack, Typography } from '@mui/material';
 import { useState } from 'react';
-import {
-  DeliveryStatus,
-  DeliveryStatusChip,
-  FAILURE_REASON_LABELS,
-  formatLocalityLine,
-  formatStreetLine,
-} from '../../route';
 import { useDriverHistoryDetail } from '../hooks/useDriverHistoryDetail';
 import type { DriverHistorySummary } from '../types';
 import { formatHistoryDate } from '../utils/formatHistoryDate';
+import { DeliveryHistoryList } from './DeliveryHistoryList';
 
 interface DriverHistoryAccordionProps {
   entry: DriverHistorySummary;
+  /** Presente solo en la vista de admin sobre un chofer puntual — ausente cuando el chofer ve su propio historial. */
+  driverId?: string;
 }
 
-export function DriverHistoryAccordion({ entry }: DriverHistoryAccordionProps) {
+export function DriverHistoryAccordion({ entry, driverId }: DriverHistoryAccordionProps) {
   const [expanded, setExpanded] = useState(false);
-  const { status, detail, errorMessage } = useDriverHistoryDetail(entry.id, expanded);
+  const { status, detail, errorMessage } = useDriverHistoryDetail(entry.id, expanded, driverId);
 
   return (
     <Accordion expanded={expanded} onChange={(_event, isExpanded) => setExpanded(isExpanded)} disableGutters>
@@ -58,41 +42,7 @@ export function DriverHistoryAccordion({ entry }: DriverHistoryAccordionProps) {
 
         {status === 'error' && <Alert severity="error">{errorMessage}</Alert>}
 
-        {status === 'success' && detail && (
-          <List disablePadding>
-            {detail.deliveries.map((delivery) => (
-              <ListItem key={delivery.id} divider sx={{ gap: 1, alignItems: 'flex-start', px: 0 }}>
-                <ListItemText
-                  primary={formatStreetLine(delivery.address) || '(sin dirección)'}
-                  secondary={
-                    <>
-                      {formatLocalityLine(delivery.address) && (
-                        <Typography
-                          component="span"
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ display: 'block' }}
-                        >
-                          {formatLocalityLine(delivery.address)}
-                        </Typography>
-                      )}
-                      {delivery.status === DeliveryStatus.Failed && delivery.failureReasonCode && (
-                        <Typography component="span" variant="caption" color="error" sx={{ display: 'block' }}>
-                          {FAILURE_REASON_LABELS[delivery.failureReasonCode]}
-                          {delivery.failureReasonDetail ? `: ${delivery.failureReasonDetail}` : ''}
-                        </Typography>
-                      )}
-                    </>
-                  }
-                  slotProps={{
-                    primary: { variant: 'body2', noWrap: true, sx: { fontWeight: 600 } },
-                  }}
-                />
-                <DeliveryStatusChip status={delivery.status} />
-              </ListItem>
-            ))}
-          </List>
-        )}
+        {status === 'success' && detail && <DeliveryHistoryList deliveries={detail.deliveries} />}
       </AccordionDetails>
     </Accordion>
   );

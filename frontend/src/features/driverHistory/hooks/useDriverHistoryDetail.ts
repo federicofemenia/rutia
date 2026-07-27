@@ -15,7 +15,8 @@ interface UseDriverHistoryDetailResult {
  * vez) — nunca antes, para no traer `deliveries[]` de todo el histórico de una. Una vez cargado
  * con éxito, `loadedRef` evita repetir el fetch si se vuelve a expandir el mismo Accordion.
  */
-export function useDriverHistoryDetail(id: string, shouldLoad: boolean): UseDriverHistoryDetailResult {
+/** Sin `driverId`: el propio historial del chofer autenticado. Con `driverId`: vista de admin sobre ese chofer. */
+export function useDriverHistoryDetail(id: string, shouldLoad: boolean, driverId?: string): UseDriverHistoryDetailResult {
   const [status, setStatus] = useState<DriverHistoryDetailStatus>('idle');
   const [detail, setDetail] = useState<DriverHistoryDetail | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -31,7 +32,7 @@ export function useDriverHistoryDetail(id: string, shouldLoad: boolean): UseDriv
 
     async function load() {
       try {
-        const result = await fetchDriverHistoryDetail(id);
+        const result = await fetchDriverHistoryDetail(id, driverId);
         if (cancelled) {
           return;
         }
@@ -52,7 +53,7 @@ export function useDriverHistoryDetail(id: string, shouldLoad: boolean): UseDriv
     return () => {
       cancelled = true;
     };
-  }, [id, shouldLoad]);
+  }, [id, shouldLoad, driverId]);
 
   return { status, detail, errorMessage };
 }

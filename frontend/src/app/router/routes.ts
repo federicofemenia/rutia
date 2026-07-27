@@ -8,6 +8,7 @@ export const ROUTES = {
   driverHistory: '/mis-entregas',
   tracking: '/tracking/:driverId',
   trackingMap: '/tracking/:driverId/map',
+  trackingHistory: '/tracking/:driverId/history',
 } as const;
 
 export function buildTrackingPath(driverId: string): string {
@@ -16,4 +17,8 @@ export function buildTrackingPath(driverId: string): string {
 
 export function buildTrackingMapPath(driverId: string): string {
   return `/tracking/${encodeURIComponent(driverId)}/map`;
+}
+
+export function buildTrackingHistoryPath(driverId: string): string {
+  return `/tracking/${encodeURIComponent(driverId)}/history`;
 }
