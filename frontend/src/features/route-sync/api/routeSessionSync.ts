@@ -1,13 +1,15 @@
 import { authFetch } from '../../auth';
 import type { RouteSession } from '../../route';
+import { parseRouteSessionResponse } from '../utils/parseRouteSessionResponse';
 
 /**
- * Empuja la RouteSession actual al backend (asociada al usuario autenticado vía el token). Es
- * un espejo para que el admin pueda hacer seguimiento — la fuente de verdad para el chofer
- * sigue siendo local (localStorage); si esto falla, no debe romper el uso normal de la app.
+ * El backend (`GET`/`PUT /api/route-session`, scopeado por el usuario autenticado vía el token)
+ * es la única fuente de verdad de la RouteSession — `pushRouteSession` la sincroniza en cada
+ * cambio, `fetchRouteSession` la hidrata al iniciar sesión. Nunca se persiste en `localStorage`.
  */
 
 const API_URL = import.meta.env.VITE_API_URL ?? '';
+
 export async function pushRouteSession(session: RouteSession): Promise<void> {
   const response = await authFetch(`${API_URL}/api/route-session`, {
     method: 'PUT',
@@ -18,4 +20,9 @@ export async function pushRouteSession(session: RouteSession): Promise<void> {
   if (!response.ok) {
     throw new Error(`No se pudo sincronizar la ruta con el servidor (status ${response.status}).`);
   }
+}
+
+export async function fetchRouteSession(): Promise<RouteSession | null> {
+  const response = await authFetch(`${API_URL}/api/route-session`);
+  return parseRouteSessionResponse(response);
 }

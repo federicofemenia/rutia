@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { clearLegacyRouteStorage } from '../../../shared/utils/legacyRouteStorage';
 import { login as loginRequest } from '../api/login';
 import type { AuthUser } from '../types';
 import { clearStoredAuth, loadStoredAuth, saveStoredAuth } from '../utils/authStorage';
@@ -10,6 +11,13 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<AuthUser | null>(() => loadStoredAuth()?.user ?? null);
+
+  // Limpieza de compatibilidad para instalaciones existentes: versiones previas guardaban la
+  // RouteSession en una clave de localStorage global, sin scope de usuario — se borra una vez al
+  // arrancar la app, aunque nadie haga login todavía.
+  useEffect(() => {
+    clearLegacyRouteStorage();
+  }, []);
 
   const setSession = useCallback((session: AuthSession) => {
     saveStoredAuth(session);
@@ -26,6 +34,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = useCallback(() => {
     clearStoredAuth();
+    clearLegacyRouteStorage();
     setUser(null);
   }, []);
 

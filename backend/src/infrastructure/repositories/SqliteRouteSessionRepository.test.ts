@@ -35,6 +35,12 @@ const SAMPLE_USER: User = {
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
 
+const OTHER_USER: User = {
+  ...SAMPLE_USER,
+  id: 'user-2',
+  name: 'otro-chofer',
+};
+
 /**
  * `route_sessions.user_id` tiene FOREIGN KEY a `users(id)` (y `users.company_id` a
  * `companies(id)`), y a diferencia de `node:sqlite` (que no la hacía cumplir por defecto), el
@@ -47,6 +53,7 @@ async function createMigratedClientWithUser(): Promise<Client> {
   await runMigrations(client, migrations);
   await new SqliteCompanyRepository(client).create(SAMPLE_COMPANY);
   await new SqliteUserRepository(client).create(SAMPLE_USER);
+  await new SqliteUserRepository(client).create(OTHER_USER);
   return client;
 }
 
@@ -72,6 +79,23 @@ test('findByUserId devuelve null si no hay sesión guardada para ese usuario', a
   const repository = new SqliteRouteSessionRepository(client);
 
   assert.equal(await repository.findByUserId('nadie'), null);
+});
+
+test('la sesión de un usuario está completamente aislada de la de otro (mismo user_id nunca se comparte)', async () => {
+  const client = await createMigratedClientWithUser();
+  const repository = new SqliteRouteSessionRepository(client);
+  const otherSession: RouteSession = { ...SAMPLE_SESSION, id: 'session-2', deliveries: [] };
+
+  await repository.save(SAMPLE_USER.id, SAMPLE_SESSION);
+
+  // El segundo usuario nunca guardó nada — no debe heredar la sesión del primero.
+  assert.equal(await repository.findByUserId(OTHER_USER.id), null);
+
+  await repository.save(OTHER_USER.id, otherSession);
+
+  // Ahora que ambos tienen sesión, cada `findByUserId` devuelve exclusivamente la propia.
+  assert.deepEqual(await repository.findByUserId(SAMPLE_USER.id), SAMPLE_SESSION);
+  assert.deepEqual(await repository.findByUserId(OTHER_USER.id), otherSession);
 });
 
 test('save es un upsert: la segunda llamada actualiza en vez de duplicar', async () => {

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useState, type ReactNode } from 'react';
-import { usePersistence } from '../../persistence';
-import { pushRouteSession } from '../../route-sync';
-import { RestoreSessionDialog } from '../components/RestoreSessionDialog';
+import { useAuth } from '../../auth';
+import { fetchRouteSession, pushRouteSession } from '../../route-sync';
 import {
   DeliveryStatus,
   GeocodingStatus,
@@ -11,62 +10,66 @@ import {
   type DeliveryAddress,
   type FailureReasonCode,
   type OptimizeRouteSummary,
-  type RouteSession,
   type RouteSummaryInfo,
 } from '../types';
+import { loadRouteSessionForUser } from '../utils/loadRouteSessionForUser';
 import { RouteContext } from './routeContextObject';
 import { createRouteSession, routeReducer } from './routeReducer';
 
 type DeliveryInput = Omit<Delivery, 'id' | 'createdAt' | 'status' | 'geocodingStatus'>;
-type InitPhase = 'checking' | 'awaitingChoice' | 'ready';
 
 interface RouteProviderProps {
   children: ReactNode;
 }
 
 export function RouteProvider({ children }: RouteProviderProps) {
+  const { user } = useAuth();
   const [session, dispatch] = useReducer(routeReducer, undefined, createRouteSession);
-  const { saveRoute, loadRoute, clearRoute } = usePersistence();
-
-  const [phase, setPhase] = useState<InitPhase>('checking');
-  const [restorableSession, setRestorableSession] = useState<RouteSession | null>(null);
+  const [isHydrated, setIsHydrated] = useState(false);
   // Ephemeral, no se persiste (ni localStorage ni backend): es el resultado de la última vez que
   // el chofer tocó "Optimizar ruta" — no es parte del dominio de la sesión (`RouteSession`/
   // `Delivery` no cambian), solo datos para mostrar. No se recalcula solo: agregar, editar o
   // borrar una entrega no lo toca, el chofer decide cuándo volver a optimizar.
   const [routeSummary, setRouteSummaryState] = useState<RouteSummaryInfo | null>(null);
 
+  // La base de datos (vía el backend, scopeado por el usuario autenticado) es la única fuente de
+  // verdad de la RouteSession — nunca localStorage. Al cambiar de usuario (id distinto), se
+  // limpia el estado en memoria de inmediato, ANTES de pedir la sesión nueva, para que nunca se
+  // llegue a mostrar la ruta de la cuenta anterior mientras se espera la respuesta del backend.
   useEffect(() => {
-    let cancelled = false;
+    if (!user) {
+      return;
+    }
 
-    loadRoute().then((persisted) => {
+    let cancelled = false;
+    setIsHydrated(false);
+    dispatch({ type: 'START_NEW_ROUTE', payload: createRouteSession() });
+    setRouteSummaryState(null);
+
+    loadRouteSessionForUser({ fetchRouteSession }).then((loaded) => {
       if (cancelled) {
         return;
       }
-
-      if (persisted && persisted.deliveries.length > 0) {
-        setRestorableSession(persisted);
-        setPhase('awaitingChoice');
-      } else {
-        setPhase('ready');
-      }
+      dispatch({ type: 'RESTORE_SESSION', payload: loaded });
+      setIsHydrated(true);
     });
 
     return () => {
       cancelled = true;
     };
-  }, [loadRoute]);
+    // Deliberadamente `user?.id`, no `user`: solo debe re-hidratar cuando cambia la identidad del
+    // usuario, no cada vez que el objeto `user` cambie de referencia por otro motivo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   useEffect(() => {
-    if (phase === 'ready') {
-      saveRoute(session);
-      // Espejo para el seguimiento del admin — si falla (sin red, token vencido, etc.) no debe
-      // afectar el uso normal de la app, que sigue funcionando 100% local.
-      pushRouteSession(session).catch((error) => {
-        console.error('No se pudo sincronizar la ruta con el servidor', error);
-      });
+    if (!isHydrated) {
+      return;
     }
-  }, [session, phase, saveRoute]);
+    pushRouteSession(session).catch((error) => {
+      console.error('No se pudo sincronizar la ruta con el servidor', error);
+    });
+  }, [session, isHydrated]);
 
   const addDelivery = useCallback((input: DeliveryInput): Delivery => {
     const delivery: Delivery = {
@@ -121,20 +124,6 @@ export function RouteProvider({ children }: RouteProviderProps) {
     setRouteSummaryState(null);
   }, []);
 
-  const handleContinue = useCallback(() => {
-    if (restorableSession) {
-      dispatch({ type: 'RESTORE_SESSION', payload: restorableSession });
-    }
-    setRestorableSession(null);
-    setPhase('ready');
-  }, [restorableSession]);
-
-  const handleStartNew = useCallback(() => {
-    clearRoute();
-    setRestorableSession(null);
-    setPhase('ready');
-  }, [clearRoute]);
-
   const value = useMemo(
     () => ({
       session,
@@ -164,16 +153,5 @@ export function RouteProvider({ children }: RouteProviderProps) {
     ],
   );
 
-  return (
-    <RouteContext.Provider value={value}>
-      {children}
-      <RestoreSessionDialog
-        open={phase === 'awaitingChoice'}
-        deliveryCount={restorableSession?.deliveries.length ?? 0}
-        lastModified={restorableSession?.updatedAt ?? new Date()}
-        onContinue={handleContinue}
-        onStartNew={handleStartNew}
-      />
-    </RouteContext.Provider>
-  );
+  return <RouteContext.Provider value={value}>{children}</RouteContext.Provider>;
 }
