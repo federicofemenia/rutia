@@ -19,6 +19,8 @@ export interface RouteContextValue {
   removeDelivery: (id: string) => void;
   reorderDeliveries: (deliveries: Delivery[]) => void;
   startDelivery: (id: string) => void;
+  /** Deshace "Iniciar reparto": vuelve la entrega de InProgress a Pending. */
+  undoStartDelivery: (id: string) => void;
   completeDelivery: (id: string) => void;
   failDelivery: (id: string, failureReasonCode: FailureReasonCode, failureReasonDetail?: string) => void;
   editDeliveryAddress: (id: string, address: DeliveryAddress, coordinates: Coordinates) => void;

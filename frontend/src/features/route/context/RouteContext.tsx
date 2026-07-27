@@ -87,6 +87,10 @@ export function RouteProvider({ children }: RouteProviderProps) {
 
   const removeDelivery = useCallback((id: string) => {
     dispatch({ type: 'REMOVE_DELIVERY', payload: { id } });
+    // El resumen de la última optimización puede incluir tramos hacia/desde la entrega borrada —
+    // dejarlo como estaba mostraría una distancia/tiempo total que ya no es real. Se limpia en vez
+    // de recalcularlo solo: el chofer sigue decidiendo cuándo optimizar, con el aviso ya existente.
+    setRouteSummaryState(null);
   }, []);
 
   const reorderDeliveries = useCallback((deliveries: Delivery[]) => {
@@ -95,6 +99,10 @@ export function RouteProvider({ children }: RouteProviderProps) {
 
   const startDelivery = useCallback((id: string) => {
     dispatch({ type: 'START_DELIVERY', payload: { id } });
+  }, []);
+
+  const undoStartDelivery = useCallback((id: string) => {
+    dispatch({ type: 'UNDO_START_DELIVERY', payload: { id } });
   }, []);
 
   const completeDelivery = useCallback((id: string) => {
@@ -131,6 +139,7 @@ export function RouteProvider({ children }: RouteProviderProps) {
       removeDelivery,
       reorderDeliveries,
       startDelivery,
+      undoStartDelivery,
       completeDelivery,
       failDelivery,
       editDeliveryAddress,
@@ -144,6 +153,7 @@ export function RouteProvider({ children }: RouteProviderProps) {
       removeDelivery,
       reorderDeliveries,
       startDelivery,
+      undoStartDelivery,
       completeDelivery,
       failDelivery,
       editDeliveryAddress,

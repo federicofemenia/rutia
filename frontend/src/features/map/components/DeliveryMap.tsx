@@ -12,6 +12,8 @@ import {
 import { useMemo, useState } from 'react';
 import {
   DELIVERY_STATUS_CONFIG,
+  DeliveryStatus,
+  FAILURE_REASON_LABELS,
   formatLocalityLine,
   formatStreetLine,
   type Coordinates,
@@ -84,6 +86,12 @@ function DeliveryMarker({ delivery, order, color, statusLabel, isSelected, onSel
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
             {statusLabel}
           </Typography>
+          {delivery.status === DeliveryStatus.Failed && delivery.failureReasonCode && (
+            <Typography variant="caption" color="error" sx={{ display: 'block' }}>
+              {FAILURE_REASON_LABELS[delivery.failureReasonCode]}
+              {delivery.failureReasonDetail ? `: ${delivery.failureReasonDetail}` : ''}
+            </Typography>
+          )}
         </InfoWindow>
       )}
     </>

@@ -6,8 +6,13 @@ export const ROUTES = {
   routeSummary: '/route-summary',
   map: '/map',
   tracking: '/tracking/:driverId',
+  trackingMap: '/tracking/:driverId/map',
 } as const;
 
 export function buildTrackingPath(driverId: string): string {
   return `/tracking/${encodeURIComponent(driverId)}`;
+}
+
+export function buildTrackingMapPath(driverId: string): string {
+  return `/tracking/${encodeURIComponent(driverId)}/map`;
 }

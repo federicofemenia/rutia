@@ -13,6 +13,7 @@ export type RouteAction =
   | { type: 'REMOVE_DELIVERY'; payload: { id: string } }
   | { type: 'REORDER_DELIVERIES'; payload: Delivery[] }
   | { type: 'START_DELIVERY'; payload: { id: string } }
+  | { type: 'UNDO_START_DELIVERY'; payload: { id: string } }
   | { type: 'COMPLETE_DELIVERY'; payload: { id: string } }
   | { type: 'FAIL_DELIVERY'; payload: { id: string; failureReasonCode: FailureReasonCode; failureReasonDetail?: string } }
   | { type: 'UPDATE_DELIVERY_ADDRESS'; payload: { id: string; address: DeliveryAddress; coordinates: Coordinates } }
@@ -59,6 +60,20 @@ export function routeReducer(state: RouteSession, action: RouteAction): RouteSes
       return {
         ...state,
         deliveries: updateDelivery(state.deliveries, action.payload.id, { status: DeliveryStatus.InProgress }),
+        updatedAt: new Date(),
+      };
+    }
+
+    case 'UNDO_START_DELIVERY': {
+      const target = state.deliveries.find((delivery) => delivery.id === action.payload.id);
+
+      if (!target || target.status !== DeliveryStatus.InProgress) {
+        return state;
+      }
+
+      return {
+        ...state,
+        deliveries: updateDelivery(state.deliveries, action.payload.id, { status: DeliveryStatus.Pending }),
         updatedAt: new Date(),
       };
     }

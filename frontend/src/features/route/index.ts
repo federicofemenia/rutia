@@ -6,6 +6,7 @@ export { RouteOverviewCard } from './components/RouteOverviewCard';
 export { RouteSummaryStats } from './components/RouteSummaryStats';
 export { ARGENTINE_PROVINCES, isArgentineProvince, type ArgentineProvince } from './config/argentineProvinces';
 export { DELIVERY_STATUS_CONFIG } from './config/deliveryStatusConfig';
+export { FAILURE_REASON_LABELS } from './config/failureReasonConfig';
 export { RouteProvider } from './context/RouteContext';
 export { useOptimizeRoute } from './hooks/useOptimizeRoute';
 export { useRoute } from './hooks/useRoute';

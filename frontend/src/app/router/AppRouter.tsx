@@ -5,6 +5,7 @@ import { MapPage } from '../../pages/Map';
 import { ScanPage } from '../../pages/Scan';
 import { RouteSummaryPage } from '../../pages/RouteSummary';
 import { TrackingPage } from '../../pages/Tracking';
+import { TrackingMapPage } from '../../pages/TrackingMap';
 import { HomeRoute } from './HomeRoute';
 import { RequireAuth } from './RequireAuth';
 import { ROUTES } from './routes';
@@ -21,6 +22,7 @@ export function AppRouter() {
           <Route path={ROUTES.routeSummary} element={<RouteSummaryPage />} />
           <Route path={ROUTES.map} element={<MapPage />} />
           <Route path={ROUTES.tracking} element={<TrackingPage />} />
+          <Route path={ROUTES.trackingMap} element={<TrackingMapPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

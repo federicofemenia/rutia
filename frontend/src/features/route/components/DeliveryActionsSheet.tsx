@@ -2,6 +2,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import EditIcon from '@mui/icons-material/Edit';
 import NavigationIcon from '@mui/icons-material/Navigation';
+import UndoIcon from '@mui/icons-material/Undo';
 import { Divider, List, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { useState } from 'react';
 import type { PlaceSelection } from '../../places';
@@ -21,7 +22,7 @@ interface DeliveryActionsSheetProps {
 }
 
 export function DeliveryActionsSheet({ delivery, onClose, onNavigate }: DeliveryActionsSheetProps) {
-  const { completeDelivery, failDelivery, editDeliveryAddress } = useRoute();
+  const { completeDelivery, undoStartDelivery, failDelivery, editDeliveryAddress } = useRoute();
   const [failingDeliveryId, setFailingDeliveryId] = useState<string | null>(null);
   const [editingDelivery, setEditingDelivery] = useState<Delivery | null>(null);
 
@@ -123,6 +124,18 @@ export function DeliveryActionsSheet({ delivery, onClose, onNavigate }: Delivery
                       <CancelIcon color="error" />
                     </ListItemIcon>
                     <ListItemText primary="Marcar fallida" />
+                  </ListItemButton>
+                  <ListItemButton
+                    disableGutters
+                    onClick={() => {
+                      undoStartDelivery(delivery.id);
+                      onClose();
+                    }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 36 }}>
+                      <UndoIcon color="action" />
+                    </ListItemIcon>
+                    <ListItemText primary="Deshacer inicio" secondary="Por si iniciaste este reparto por error" />
                   </ListItemButton>
                 </>
               )}

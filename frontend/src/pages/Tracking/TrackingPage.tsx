@@ -1,9 +1,15 @@
 import { Alert, CircularProgress, List, ListItem, ListItemText, Stack, Typography } from '@mui/material';
 import { useParams } from 'react-router-dom';
-import { DeliveryStatusChip, formatLocalityLine, formatStreetLine } from '../../features/route';
+import {
+  DeliveryStatus,
+  DeliveryStatusChip,
+  FAILURE_REASON_LABELS,
+  formatLocalityLine,
+  formatStreetLine,
+} from '../../features/route';
 import { useDriverTracking } from '../../features/tracking';
 import { AppLayout } from '../../shared/components';
-import { HOME_ONLY_NAV_ITEMS } from '../../shared/config/bottomNavItems';
+import { getDriverTrackingNavItems } from '../../shared/config/bottomNavItems';
 
 export function TrackingPage() {
   const { driverId = '' } = useParams<{ driverId: string }>();
@@ -13,7 +19,10 @@ export function TrackingPage() {
   const deliveries = data?.session?.deliveries ?? [];
 
   return (
-    <AppLayout title={driverName ? `Seguimiento: ${driverName}` : 'Seguimiento'} bottomNavItems={HOME_ONLY_NAV_ITEMS}>
+    <AppLayout
+      title={driverName ? `Seguimiento: ${driverName}` : 'Seguimiento'}
+      bottomNavItems={getDriverTrackingNavItems(driverId)}
+    >
       <Typography variant="h6">{driverName ? `Envíos del chofer ${driverName}` : 'Envíos del chofer'}</Typography>
 
       {status === 'loading' && !data && (
@@ -34,13 +43,26 @@ export function TrackingPage() {
       {deliveries.length > 0 && (
         <List disablePadding>
           {deliveries.map((delivery) => (
-            <ListItem key={delivery.id} divider sx={{ gap: 1 }}>
+            <ListItem key={delivery.id} divider sx={{ gap: 1, alignItems: 'flex-start' }}>
               <ListItemText
                 primary={formatStreetLine(delivery.address) || '(sin dirección)'}
-                secondary={formatLocalityLine(delivery.address) || undefined}
+                secondary={
+                  <>
+                    {formatLocalityLine(delivery.address) && (
+                      <Typography component="span" variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                        {formatLocalityLine(delivery.address)}
+                      </Typography>
+                    )}
+                    {delivery.status === DeliveryStatus.Failed && delivery.failureReasonCode && (
+                      <Typography component="span" variant="caption" color="error" sx={{ display: 'block' }}>
+                        {FAILURE_REASON_LABELS[delivery.failureReasonCode]}
+                        {delivery.failureReasonDetail ? `: ${delivery.failureReasonDetail}` : ''}
+                      </Typography>
+                    )}
+                  </>
+                }
                 slotProps={{
                   primary: { variant: 'body2', noWrap: true, sx: { fontWeight: 600 } },
-                  secondary: { variant: 'caption' },
                 }}
               />
               <DeliveryStatusChip status={delivery.status} />

@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../app/router/routes';
 import { useAuth } from '../../features/auth';
 import { NavigationDialog, type NavigationDestination } from '../../features/navigation';
-import { OptimizeRouteDialog, useOptimizeDeliveries } from '../../features/route-optimization';
+import { OptimizeRouteDialog, useOptimizeDeliveries, useReoptimizeAfterDelete } from '../../features/route-optimization';
 import {
   buildDeliveryLegInfo,
   DeliveryActionsSheet,
@@ -29,8 +29,16 @@ export function RouteSummaryPage() {
   const { logout } = useAuth();
   const { session, routeSummary, startDelivery, removeDelivery } = useRoute();
   const { isDialogOpen, openOptimizeDialog, closeOptimizeDialog, handleOptimized } = useOptimizeDeliveries();
+  const reoptimizeAfterDelete = useReoptimizeAfterDelete();
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
   const [navigationTarget, setNavigationTarget] = useState<Delivery | null>(null);
+
+  const handleDeleteDelivery = (target: Delivery) => {
+    const previousSummary = routeSummary;
+    const remainingDeliveries = session.deliveries.filter((delivery) => delivery.id !== target.id);
+    removeDelivery(target.id);
+    void reoptimizeAfterDelete(remainingDeliveries, previousSummary);
+  };
 
   const navigationDestination: NavigationDestination | null = navigationTarget
     ? { address: formatFullAddress(navigationTarget.address), coordinates: navigationTarget.coordinates }
@@ -100,7 +108,7 @@ export function RouteSummaryPage() {
               onOpen={setSelectedDelivery}
               onNavigate={setNavigationTarget}
               onStart={(target) => startDelivery(target.id)}
-              onDelete={(target) => removeDelivery(target.id)}
+              onDelete={handleDeleteDelivery}
             />
           );
         })}
